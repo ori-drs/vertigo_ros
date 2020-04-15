@@ -102,7 +102,10 @@ bool parseDataset(std::string inputFile, std::vector<Pose>&poses, std::vector<Ed
      if (type == "VERTEX_SE3:QUAT") {
 			 Pose p;
        inFile  >> p.id >> p.x >> p.y >> p.z >> p.qx >> p.qy >> p.qz >> p.qw;
+
 			 poses.push_back(p);
+//       std::cout << p.id << " " << p.x << " " << p.y << " " << p.z << " " << p.qx << " "
+//                 << p.qy << " " << p.qz << " " << p.qw << endl;
 //       std::cout << "size of poses is: " << poses.size() << endl;
 		 }
 
@@ -124,6 +127,9 @@ bool parseDataset(std::string inputFile, std::vector<Pose>&poses, std::vector<Ed
 
 			 // read odometry measurement
        inFile >> e.x >> e.y >> e.z >> e.qx >> e.qy >> e.qz >> e.qw;
+
+//        std::cout << e.i << " " << e.j << " " << e.x << " " << e.y << " " << e.z << " " << e.qx << " "
+//                  << e.qy << " " << e.qz << " " << e.qw << endl;
 
 			 // read information matrix
        double info[21];
@@ -155,6 +161,8 @@ bool parseDataset(std::string inputFile, std::vector<Pose>&poses, std::vector<Ed
        informationMatrix(3,5) = informationMatrix(5,3) = info[17];
 
        informationMatrix(4,5) = informationMatrix(5,4) = info[19];
+
+//       cout << "information matrix is:\n " << informationMatrix << endl; // information matrix is correct
 
 			 e.covariance = inverse(informationMatrix);
 
@@ -295,6 +303,8 @@ int main(int argc, char *argv[])
 //    	    timer.tic("initialize");
 
           Pose3 predecessorPose = isam2.calculateEstimate<Pose3>(fullSLAM::PoseKey(p.id-1));
+//          cout << "predecessor pose: rot:\n " << predecessorPose.rotation() << "\n translation is: \n" << predecessorPose.translation() << endl;
+
           if (isnan(predecessorPose.x()) || isnan(predecessorPose.y()) || isnan(predecessorPose.z()) ||
               isnan(predecessorPose.rotation().quaternion()[0]) || isnan(predecessorPose.rotation().quaternion()[1]) ||
               isnan(predecessorPose.rotation().quaternion()[2]) || isnan(predecessorPose.rotation().quaternion()[3])) {
@@ -303,8 +313,8 @@ int main(int argc, char *argv[])
 //    	      timer.print(cout);
     	      return 0;
     	    }
-          initialEstimate.insertPose(p.id, predecessorPose * Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)));
-          globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)) );
+          initialEstimate.insertPose(p.id, predecessorPose * Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)));
+          globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)) );
 //    	    timer.toc("initialize");
     	  }
 
@@ -313,7 +323,7 @@ int main(int argc, char *argv[])
     		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            graph.addOdometry(e.i, e.j, Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)), odom_model);
+            graph.addOdometry(e.i, e.j, Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)), odom_model);
     		  }
     		}
     		else if (e.switchable && !vm.count("odoOnly")) {
@@ -329,7 +339,7 @@ int main(int argc, char *argv[])
 
             // create switchable odometry factor
             SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(p.qw,p.qx,p.qy,p.qz), Point3(p.x, p.y, p.z)), odom_model));
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
             graph.push_back(switchableFactor);
     		  }
     		  else {
@@ -344,7 +354,7 @@ int main(int argc, char *argv[])
 
     		    // create switchable odometry factor
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(p.qw,p.qx,p.qy,p.qz), Point3(p.x, p.y, p.z)), odom_model));
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
     		    graph.push_back(switchableFactor);
     		  }
     		}
@@ -353,7 +363,7 @@ int main(int argc, char *argv[])
     		  SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
     		  SharedNoiseModel null_model = noiseModel::Gaussian::Covariance(e.covariance / e.weight);
 
-          boost::shared_ptr<NonlinearFactor> maxMixFactor(new BetweenFactorMaxMix<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Pose3(Rot3(p.qw,p.qx,p.qy,p.qz), Point3(p.x, p.y, p.z)), odom_model, null_model, e.weight));
+          boost::shared_ptr<NonlinearFactor> maxMixFactor(new BetweenFactorMaxMix<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model, null_model, e.weight));
     		  graph.push_back(maxMixFactor);
     		}
 //    		timer.toc("addEdges");
@@ -390,7 +400,7 @@ int main(int argc, char *argv[])
     	else  {
 //    	  timer.tic("update");
     	  isam2.update(graph, initialEstimate);
-        cout << "counter: " << counter << " and poses size is: " << poses.size() << endl;
+//        cout << "counter: " << counter << " and poses size is: " << poses.size() << endl;
 //    	  timer.toc("update");
     	}
 
