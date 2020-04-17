@@ -275,6 +275,7 @@ int main(int argc, char *argv[])
 
     int counter=0;
     int switchCounter=-1;
+    int odomCounter = 0;
 
     fullSLAM::Values globalInitialEstimate;
 //    Timer timer;
@@ -301,7 +302,8 @@ int main(int argc, char *argv[])
     	  // see if this is an odometry edge, if yes, use it to initialize the current pose
     	  if (e.j==e.i+1) {
 //    	    timer.tic("initialize");
-
+          odomCounter++;
+          cout << "Number of odom constraints is: " << odomCounter << endl;
           Pose3 predecessorPose = isam2.calculateEstimate<Pose3>(fullSLAM::PoseKey(p.id-1));
 //          cout << "predecessor pose: rot:\n " << predecessorPose.rotation() << "\n translation is: \n" << predecessorPose.translation() << endl;
 
