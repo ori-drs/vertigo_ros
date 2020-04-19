@@ -5,7 +5,6 @@
  *      Author: niko
  */
 
-//#include <gtsam/slam/planarSLAM.h>
 #include "planarSLAM.h"
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -30,7 +29,7 @@ namespace po = boost::program_options;
 #include "switchVariableLinear.h"
 #include "switchVariableSigmoid.h"
 #include "betweenFactorMaxMix.h"
-//#include "timer.h"
+#include "timer.h"
 using namespace vertigo;
 
 
@@ -249,7 +248,7 @@ int main(int argc, char *argv[])
     int switchCounter=-1;
 
     planarSLAM::Values globalInitialEstimate;
-//    Timer timer;
+    Timer timer;
 
     // iterate through the poses and incrementally build and solve the graph, using iSAM2
     foreach (Pose p, poses) {
@@ -260,9 +259,9 @@ int main(int argc, char *argv[])
 
     	 // find all the edges that involve this pose
 
-//      timer.tic("findEdges");
+      timer.tic("findEdges");
      std::pair<std::multimap<int, int>::iterator, std::multimap<int, int>::iterator > ret = poseToEdges.equal_range(p.id);
-//      timer.toc("findEdges");
+      timer.toc("findEdges");
 
       for (std::multimap<int, int>::iterator it=ret.first; it!=ret.second; it++) {
 
@@ -272,20 +271,21 @@ int main(int argc, char *argv[])
 
     	  // see if this is an odometry edge, if yes, use it to initialize the current pose
     	  if (e.j==e.i+1) {
-//    	    timer.tic("initialize");
+          timer.tic("initialize");
     	    Pose2 predecessorPose = isam2.calculateEstimate<Pose2>(planarSLAM::PoseKey(p.id-1));
     	    if (isnan(predecessorPose.x()) || isnan(predecessorPose.y()) || isnan(predecessorPose.theta())) {
     	      cout << "! Degenerated solution (NaN) detected. Solver failed." << endl;
     	      writeResults(globalInitialEstimate, outputFile);
-//    	      timer.print(cout);
+            timer.print(cout);
     	      return 0;
     	    }
     	    initialEstimate.insertPose(p.id, predecessorPose * Pose2(e.x, e.y, e.th));
     	    globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose2(e.x, e.y, e.th) );
-//    	    timer.toc("initialize");
+          timer.toc("initialize");
     	  }
 
-//    	  timer.tic("addEdges");
+        timer.tic("addEdges");
+
     		if (!e.switchable && !e.maxMix) {
     		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
     		  boost::shared_ptr<NonlinearFactor> maxMixFactor(new BetweenFactorMaxMix<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), Pose2(e.x, e.y, e.th), odom_model, null_model, e.weight));
     		  graph.push_back(maxMixFactor);
     		}
-//    		timer.toc("addEdges");
+        timer.toc("addEdges");
     	}
 
 
@@ -352,16 +352,16 @@ int main(int argc, char *argv[])
 
 
     	if (verbose) {
-//    	  timer.tic("update");
+        timer.tic("update");
     	  ISAM2Result result = isam2.update(graph, initialEstimate);
-//    	  timer.toc("update");
+        timer.toc("update");
     	  cout << "cliques: " << result.cliques << "\terr_before: " << *(result.errorBefore) << "\terr_after: " << *(result.errorAfter) << "\trelinearized: " << result.variablesRelinearized << endl;
     	}
     	else  {
-//    	  timer.tic("update");
+        timer.tic("update");
     	  isam2.update(graph, initialEstimate);
-        cout << "counter: " << counter << " and poses size is: " << poses.size() << endl;
-//    	  timer.toc("update");
+        cout << "counter: " << counter << endl;
+        timer.toc("update");
     	}
 
 
@@ -369,10 +369,10 @@ int main(int argc, char *argv[])
     	if ( (counter++ >= stop) && (stop>0)) break;
 
     	if (false) {
-//    	  timer.tic("marginals");
+        timer.tic("marginals");
     	  gtsam::Marginals marginals(isam2.getFactorsUnsafe(), isam2.getLinearizationPoint());
     	  gtsam::Matrix cov = marginals.marginalCovariance(gtsam::Symbol('x', p.id));
-//    	  timer.toc("marginals");
+        timer.toc("marginals");
     	  cout << cov << endl << endl;
     	}
 
@@ -390,10 +390,11 @@ int main(int argc, char *argv[])
     // === do final estimation ===
     //cout << endl;
     Values results = isam2.calculateBestEstimate();
+
     //results.print();
 
 
-//    timer.print(cout);
+    timer.print(cout);
 
     // === write results ===
 

@@ -31,7 +31,7 @@ namespace po = boost::program_options;
 #include "switchVariableLinear.h"
 #include "switchVariableSigmoid.h"
 #include "betweenFactorMaxMix.h"
-//#include "timer.h"
+#include "timer.h"
 using namespace vertigo;
 
 
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
     int odomCounter = 0;
 
     fullSLAM::Values globalInitialEstimate;
-//    Timer timer;
+    Timer timer;
 
     // iterate through the poses and incrementally build and solve the graph, using iSAM2
     foreach (Pose p, poses) {
@@ -289,9 +289,9 @@ int main(int argc, char *argv[])
 
     	 // find all the edges that involve this pose
 
-//      timer.tic("findEdges");
+      timer.tic("findEdges");
      std::pair<std::multimap<int, int>::iterator, std::multimap<int, int>::iterator > ret = poseToEdges.equal_range(p.id);
-//      timer.toc("findEdges");
+      timer.toc("findEdges");
 
       for (std::multimap<int, int>::iterator it=ret.first; it!=ret.second; it++) {
 
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
 
     	  // see if this is an odometry edge, if yes, use it to initialize the current pose
     	  if (e.j==e.i+1) {
-//    	    timer.tic("initialize");
+          timer.tic("initialize");
           odomCounter++;
           cout << "Number of odom constraints is: " << odomCounter << endl;
           Pose3 predecessorPose = isam2.calculateEstimate<Pose3>(fullSLAM::PoseKey(p.id-1));
@@ -312,15 +312,16 @@ int main(int argc, char *argv[])
               isnan(predecessorPose.rotation().quaternion()[2]) || isnan(predecessorPose.rotation().quaternion()[3])) {
     	      cout << "! Degenerated solution (NaN) detected. Solver failed." << endl;
     	      writeResults(globalInitialEstimate, outputFile);
-//    	      timer.print(cout);
+            timer.print(cout);
     	      return 0;
     	    }
           initialEstimate.insertPose(p.id, predecessorPose * Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)));
           globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)) );
-//    	    timer.toc("initialize");
+          timer.toc("initialize");
     	  }
 
-//    	  timer.tic("addEdges");
+        timer.tic("addEdges");
+
     		if (!e.switchable && !e.maxMix) {
     		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
@@ -368,7 +369,7 @@ int main(int argc, char *argv[])
           boost::shared_ptr<NonlinearFactor> maxMixFactor(new BetweenFactorMaxMix<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model, null_model, e.weight));
     		  graph.push_back(maxMixFactor);
     		}
-//    		timer.toc("addEdges");
+        timer.toc("addEdges");
     	}
 
 
@@ -394,16 +395,16 @@ int main(int argc, char *argv[])
 
 
     	if (verbose) {
-//    	  timer.tic("update");
+        timer.tic("update");
     	  ISAM2Result result = isam2.update(graph, initialEstimate);
-//    	  timer.toc("update");
+        timer.toc("update");
     	  cout << "cliques: " << result.cliques << "\terr_before: " << *(result.errorBefore) << "\terr_after: " << *(result.errorAfter) << "\trelinearized: " << result.variablesRelinearized << endl;
     	}
     	else  {
-//    	  timer.tic("update");
+        timer.tic("update");
     	  isam2.update(graph, initialEstimate);
 //        cout << "counter: " << counter << " and poses size is: " << poses.size() << endl;
-//    	  timer.toc("update");
+        timer.toc("update");
     	}
 
 
@@ -411,10 +412,10 @@ int main(int argc, char *argv[])
     	if ( (counter++ >= stop) && (stop>0)) break;
 
     	if (false) {
-//    	  timer.tic("marginals");
+        timer.tic("marginals");
     	  gtsam::Marginals marginals(isam2.getFactorsUnsafe(), isam2.getLinearizationPoint());
     	  gtsam::Matrix cov = marginals.marginalCovariance(gtsam::Symbol('x', p.id));
-//    	  timer.toc("marginals");
+        timer.toc("marginals");
     	  cout << cov << endl << endl;
     	}
 
@@ -435,7 +436,7 @@ int main(int argc, char *argv[])
     //results.print();
 
 
-//    timer.print(cout);
+    timer.print(cout);
 
     // === write results ===
 
