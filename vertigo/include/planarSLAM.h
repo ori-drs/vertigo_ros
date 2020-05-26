@@ -26,6 +26,8 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/geometry/Pose2.h>
+#include <gtsam/nonlinear/NonlinearISAM.h> // for incremental optimization
+#include <gtsam/nonlinear/Values.h> // initial guess required for each variable held in Values container
 
 // Use planarSLAM namespace for specific SLAM instance
 namespace planarSLAM {

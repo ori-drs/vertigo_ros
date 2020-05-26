@@ -325,8 +325,12 @@ int main(int argc, char *argv[])
     		if (!e.switchable && !e.maxMix) {
     		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
-    		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            graph.addOdometry(e.i, e.j, Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)), odom_model);
+            SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
+            // robust error model
+            SharedNoiseModel odom_model_huber =
+                noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), odom_model); // with tuning param k=1.345, 95% asymptotic efficiency on normal distribution is obtained.
+
+            graph.addOdometry(e.i, e.j, Pose3(Rot3(gtsam::Quaternion(e.qw,e.qx,e.qy,e.qz)), Point3(e.x, e.y, e.z)), odom_model_huber);
     		  }
     		}
     		else if (e.switchable && !vm.count("odoOnly")) {
@@ -336,13 +340,16 @@ int main(int argc, char *argv[])
 
             // create switch prior factor
             SharedNoiseModel switchPriorModel = noiseModel::Diagonal::Sigmas(Vector1(1.0));
-            boost::shared_ptr<PriorFactor<SwitchVariableLinear> > switchPriorFactor (new PriorFactor<SwitchVariableLinear> (Symbol('s',switchCounter), SwitchVariableLinear(1.0), switchPriorModel));
+            SharedNoiseModel switchPriorModelHuber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), switchPriorModel);
+            boost::shared_ptr<PriorFactor<SwitchVariableLinear> > switchPriorFactor (new PriorFactor<SwitchVariableLinear> (Symbol('s',switchCounter), SwitchVariableLinear(1.0), switchPriorModelHuber));
             graph.push_back(switchPriorFactor);
 
 
             // create switchable odometry factor
             SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
+            // robust error model
+            SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), odom_model);
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model_huber));
             graph.push_back(switchableFactor);
     		  }
     		  else {
@@ -352,12 +359,15 @@ int main(int argc, char *argv[])
 
     		    // create switch prior factor
             SharedNoiseModel switchPriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
-    		    boost::shared_ptr<PriorFactor<SwitchVariableSigmoid> > switchPriorFactor (new PriorFactor<SwitchVariableSigmoid> (Symbol('s',switchCounter), SwitchVariableSigmoid(10.0), switchPriorModel));
+            SharedNoiseModel switchPriorModelHuber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), switchPriorModel);
+            boost::shared_ptr<PriorFactor<SwitchVariableSigmoid> > switchPriorFactor (new PriorFactor<SwitchVariableSigmoid> (Symbol('s',switchCounter), SwitchVariableSigmoid(10.0), switchPriorModelHuber));
     		    graph.push_back(switchPriorFactor);
 
     		    // create switchable odometry factor
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
+            // robust error model
+            SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), odom_model);
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model_huber));
     		    graph.push_back(switchableFactor);
     		  }
     		}
@@ -383,7 +393,8 @@ int main(int argc, char *argv[])
         priorNoise(4) = 0.01;
         priorNoise(5) = 0.01;
         SharedDiagonal prior_model = noiseModel::Diagonal::Sigmas(priorNoise);
-        graph.addPrior(p.id, Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)), prior_model);
+        SharedNoiseModel prior_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), prior_model);
+        graph.addPrior(p.id, Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)), prior_model_huber);
 
     		// initial value for first pose
         initialEstimate.insertPose(p.id, Pose3(Rot3(gtsam::Quaternion(p.qw,p.qx,p.qy,p.qz)), Point3(p.x, p.y, p.z)));
