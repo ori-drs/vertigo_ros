@@ -1,0 +1,9 @@
+*~
+python/results
+python/.ipynb_checkpoints
+
+# Files
+matlab/*.png
+*.user
+**/build
+
