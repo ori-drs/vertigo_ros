@@ -24,8 +24,7 @@ namespace vertigo {
 
     /** wrap a double */
     ShapeParameter(double d) : d_(d) {
-     // if (d_ < 0.0) d_=0.0;
-     // else if(d_>1.0) d_=1.0;
+//      if (d_ > 2.0) d_=2.0; // maximum shape param is 2.0
     }
 
     /** access the underlying value */
@@ -51,8 +50,8 @@ namespace vertigo {
     inline ShapeParameter retract(const gtsam::Vector& v) const {
       double x = value() + v(0);
 
-      if (x>1.0) x=1.0;
-      else if (x<0.0) x=0.0;
+      if (x>2.0) x=2.0;
+      else if (x<-10.0) x=-10.0;
 
       return ShapeParameter(x);
     }
