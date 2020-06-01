@@ -24,7 +24,8 @@ namespace vertigo {
 
     /** wrap a double */
     ShapeParameter(double d) : d_(d) {
-//      if (d_ > 2.0) d_=2.0; // maximum shape param is 2.0
+      if (d_ > 2.0) d_= 2.0; // maximum shape param is 2.0
+      if (d_ < -10) d_= -10; // maximum shape param is 2.0
     }
 
     /** access the underlying value */
