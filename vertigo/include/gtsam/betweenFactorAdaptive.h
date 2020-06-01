@@ -39,9 +39,13 @@ namespace vertigo {
 
           // calculate error
           gtsam::Vector error = betweenFactor.evaluateError(p1, p2, H1, H2);
-          double c = 1; // c is scalling param set before optimisation
 
-          double w = weight_adaptive (error.norm(), alpha.value(), c);
+          double error_dis = this->noiseModel_->distance(error);
+
+          double c = 1; // c is scalling param set before optimisation
+          double w = weight_adaptive (error_dis, alpha.value(), c);
+
+          std::cout << "weight is equal toooooooo: " << w << std::endl;
 
           error *= w;
 
@@ -60,16 +64,13 @@ namespace vertigo {
           // handle derivatives MR: Need to be modified according to adaptive kernel
           if (H1) *H1 = *H1 * w;
           if (H2) *H2 = *H2 * w;
-          if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error.norm()/c,2)/(alpha.value()-2)+1,-1)*
-                                 pow(error.norm()/c,2)/pow(alpha.value()-2,2));
 
-
-//          if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -20){
-//            if (H3) *H3 = 0;
-//          } else {
-//            if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error.norm()/c,2)/(alpha.value()-2)+1,-1)*
-//                                   pow(error.norm()/c,2)/pow(alpha.value()-2,2));
-//          }
+          if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -10){
+            if (H3) *H3 = error * 0;
+          } else {
+            if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error_dis/c,2)/(alpha.value()-2)+1,-1)*
+                                   pow(error_dis/c,2)/pow(alpha.value()-2,2));
+          }
 
 
           return error;
