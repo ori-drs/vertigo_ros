@@ -29,6 +29,8 @@ namespace po = boost::program_options;
 #include "switchVariableLinear.h"
 #include "switchVariableSigmoid.h"
 #include "betweenFactorMaxMix.h"
+#include "betweenFactorAdaptive.h"
+#include "shapeParameter.h"
 #include "timer.h"
 using namespace vertigo;
 
@@ -180,7 +182,9 @@ int main(int argc, char *argv[])
       ("output,o", po::value<std::string>(&outputFile)->default_value("results.isam"),"Save results in this file.")
       ("stop", po::value<int>(&stop)->default_value(-1), "Stop after this many poses.")
       ("verbose,v", "verbose mode")
+      ("linear", "Use the linear weight function.")
       ("sigmoid", "Use the sigmoid as the switch function Psi instead of a linear function.")
+      ("adaptive", "Use the adaptive weight function.")
       ("dogleg", "Use Powell's dogleg method instead of Gauss-Newton.")
       ("qr", "Use QR factorization instead of Cholesky.")
       ("relinSkip", po::value<int>(&isam2Params.relinearizeSkip)->default_value(10), "Only relinearize any variables every relinearizeSkip calls to ISAM2::update (default: 10)")
@@ -204,6 +208,14 @@ int main(int argc, char *argv[])
     bool useSigmoid;
     if (vm.count("sigmoid")) useSigmoid=true;
     else useSigmoid = false;
+
+    bool useLinear;
+    if (vm.count("linear")) useLinear=true;
+    else useLinear = false;
+
+    bool useAdaptive;
+    if (vm.count("adaptive")) useAdaptive=true;
+    else useAdaptive = false;
 
     // === read and parse input file ===
     std::vector<Pose> poses;
@@ -294,7 +306,7 @@ int main(int argc, char *argv[])
     		  }
     		}
     		else if (e.switchable && !vm.count("odoOnly")) {
-    		  if (!useSigmoid) {
+          if (useLinear) {
             // create new switch variable
             initialEstimate.insert(Symbol('s',++switchCounter),SwitchVariableLinear(1.0));
 
@@ -309,7 +321,7 @@ int main(int argc, char *argv[])
             boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose2(e.x, e.y, e.th), odom_model));
             graph.push_back(switchableFactor);
     		  }
-    		  else {
+          else if (useSigmoid) {
 
     		    // create new switch variable
     		    initialEstimate.insert(Symbol('s',++switchCounter),SwitchVariableSigmoid(10.0));
@@ -324,6 +336,27 @@ int main(int argc, char *argv[])
     		    boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose2(e.x, e.y, e.th), odom_model));
     		    graph.push_back(switchableFactor);
     		  }
+          else if (useAdaptive) {
+           switchCounter++;
+            // create switch prior factor
+            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
+
+            if (switchCounter == 0){
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+            }
+
+
+            // create switchable odometry factor
+            SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
+            // robust error model
+//            SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), odom_model);
+            boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model));
+            graph.push_back(adaptiveFactor);
+
+
+
+          }
     		}
     		else if (e.maxMix && !vm.count("odoOnly")) {
     		  // create mixture odometry factor
@@ -391,7 +424,7 @@ int main(int argc, char *argv[])
     //cout << endl;
     Values results = isam2.calculateBestEstimate();
 
-    //results.print();
+    results.print();
 
 
     timer.print(cout);
