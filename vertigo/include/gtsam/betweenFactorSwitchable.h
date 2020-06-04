@@ -46,6 +46,7 @@ namespace vertigo {
           if (H2) *H2 = *H2 * s.value();
           if (H3) *H3 = error;
 
+//          std::cout << "error is: \n" << error << std::endl;
           return error;
         }
 
@@ -81,8 +82,9 @@ namespace vertigo {
         // handle derivatives
         if (H1) *H1 = *H1 * w;
         if (H2) *H2 = *H2 * w;
-        if (H3) *H3 = error * (w*(1.0-w));  // sig(x)*(1-sig(x)) is the derivative of sig(x) wrt. x
+        if (H3) *H3 = error /* (w*(1.0-w)) */;  // sig(x)*(1-sig(x)) is the derivative of sig(x) wrt. x
 
+//        std::cout << "error is: \n" << error << std::endl;
         return error;
       }
 
