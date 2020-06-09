@@ -42,9 +42,32 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
         boost::optional<gtsam::Matrix&> H = boost::none) const
       {
 
+      /* Matias's method
+      double sqrtPsi = sqrt(Psi(alpha.value(), alpha.weight_z()));
+      double dPsi_dalpha = Psi_alpha(alpha.value(), alpha.weight_z());
+      // calculate error ||sqrt(Psi)||^2 using Rosen et al. to use non Gaussian factor
+      gtsam::Vector error = gtsam::Vector1(sqrtPsi);
+      // handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
+      if (H) *H = gtsam::Vector1(0.5 * (1.0/sqrtPsi) * dPsi_dalpha);
+      //          std::cout << "error is: \n" << error << std::endl;
+      return error;
+      */
+
+
         // calculate error
         gtsam::Vector error = priorFactor.evaluateError(alpha, H); // how to compute error?
-        error = Psi(2.0,1.0)+Psi_z(2.0,1.0)*(alpha.weight_z()-1.0)+Psi_alpha(2.0,1.0)*error;
+
+        gtsam::Vector a = gtsam::ones(3);
+        a[0] = Psi(2.0,1.0);
+        a[1] = Psi_z(2.0,1.0);
+        a[2] = Psi_alpha(2.0,1.0);
+
+        gtsam::Vector b = gtsam::ones(3);
+        b[1] = alpha.weight_z() - 1.0;
+        b[2] = error[0];
+
+
+        error = a.transpose()*b;
 
         // handle derivatives
         if (H) *H = *H * Psi_alpha(2.0,1.0); //what should I put here?
