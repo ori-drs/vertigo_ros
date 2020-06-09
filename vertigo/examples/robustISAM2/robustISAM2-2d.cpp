@@ -31,6 +31,7 @@ namespace po = boost::program_options;
 #include "betweenFactorMaxMix.h"
 #include "betweenFactorAdaptive.h"
 #include "shapeParameter.h"
+#include "priorFactorOutlierProcess.h"
 #include "timer.h"
 using namespace vertigo;
 
@@ -343,7 +344,7 @@ int main(int argc, char *argv[])
 
             if (switchCounter == 0){
               initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
-              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+              graph.add(PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
             }
 
 

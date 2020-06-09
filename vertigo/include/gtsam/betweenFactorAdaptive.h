@@ -32,9 +32,9 @@ namespace vertigo {
         betweenFactor(key1, key2, measured, model) {}
 
       gtsam::Vector evaluateError(const VALUE& p1, const VALUE& p2, const ShapeParameter& alpha,
-          boost::optional<gtsam::Matrix&> H1 = boost::none,
-          boost::optional<gtsam::Matrix&> H2 =  boost::none,
-          boost::optional<gtsam::Matrix&> H3 =  boost::none) const
+                                  boost::optional<gtsam::Matrix&> H1 = boost::none,
+                                  boost::optional<gtsam::Matrix&> H2 =  boost::none,
+                                  boost::optional<gtsam::Matrix&> H3 =  boost::none) const
         {
 
           // calculate error
@@ -44,6 +44,7 @@ namespace vertigo {
 
           double c = 1; // c is scalling param set before optimisation
           double w = weight_adaptive (error_dis, alpha.value(), c);
+          weight_ = w;
 
           error *= w;
 
@@ -75,8 +76,11 @@ namespace vertigo {
           return error;
         }
 
+      double getWeight() const {return weight_;}
+
     private:
       gtsam::BetweenFactor<VALUE> betweenFactor;
+      mutable double weight_;
 
       double weight_adaptive(double x, double alpha, double c) const {
         if (alpha == 2) return 1/pow(c,2);
