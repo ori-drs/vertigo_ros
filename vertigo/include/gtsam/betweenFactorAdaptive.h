@@ -45,6 +45,8 @@ namespace vertigo {
           double c = 1; // c is scalling param set before optimisation
           double w = weight_adaptive (error_dis, alpha.value(), c);
           weight_ = w;
+          alpha.setWeight_z(w);
+
 
           error *= w;
 

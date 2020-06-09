@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
 
             if (switchCounter == 0){
               initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
-              graph.add(PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+
             }
 
 
@@ -355,6 +355,8 @@ int main(int argc, char *argv[])
             boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model));
             graph.push_back(adaptiveFactor);
 
+            if (switchCounter == 0)
+            graph.add(PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
 
 
           }

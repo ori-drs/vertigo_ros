@@ -44,7 +44,7 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
 
         // calculate error
         gtsam::Vector error = priorFactor.evaluateError(alpha, H); // how to compute error?
-        error = Psi(2.0,1.0)+Psi_z(2.0,1.0)*(BetweenFactorAdaptive<VALUE>::getWeight()-1.0)+Psi_alpha(2.0,1.0)*error;
+        error = Psi(2.0,1.0)+Psi_z(2.0,1.0)*(alpha.weight_z()-1.0)+Psi_alpha(2.0,1.0)*error;
 
         // handle derivatives
         if (H) *H = *H * Psi_alpha(2.0,1.0); //what should I put here?
@@ -55,6 +55,7 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
 
   private:
     gtsam::PriorFactor<VALUE> priorFactor;
+
     double Psi(double alpha, double z) const {
       if (alpha==0) return -log(z)+z-1.0;
       else if (alpha<=-10.0) return z*log(z)+1.0;
@@ -62,6 +63,7 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
         return (abs(alpha-2.0)/alpha)*((1.0-0.5*alpha)*pow(z,alpha/(alpha-2.0))+0.5*alpha*z-1.0);
       }
     }
+
     double Psi_alpha(double alpha, double z) const {
       if (alpha==0) return 0;
       else if (alpha<=-10.0) return 0;
@@ -69,6 +71,7 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
         return (pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)*(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z);
       }
     }
+
     double Psi_z(double alpha, double z) const {
       if (alpha==0) return 1.0-1.0/z;
       else if (alpha<=-10.0) return log(z);

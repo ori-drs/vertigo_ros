@@ -31,6 +31,10 @@ namespace vertigo {
     /** access the underlying value */
     double value() const { return d_; }
 
+    double weight_z() const {return weight_z_;}
+
+    void setWeight_z(double weight_z) const { weight_z_ = weight_z; }
+
     /** print @param s optional string naming the object */
     inline void print(const std::string& name="") const {
       std::cout << name << ": " << d_ << std::endl;
@@ -96,6 +100,7 @@ namespace vertigo {
 
   private:
       double d_;
+      mutable double weight_z_;
   };
 }
 
