@@ -33,7 +33,11 @@ namespace vertigo {
 
     double weight_z() const {return weight_z_;}
 
-    void setWeight_z(double weight_z) const { weight_z_ = weight_z; }
+    void setWeight_z(double weight_z) const { 
+      
+      weight_z_ = weight_z;
+      std::cout << "ShapeParameter: trying to set weight_z_ to  " << std::to_string(weight_z) << ". Result:" << std::to_string(weight_z_) << std::endl;
+      }
 
     /** print @param s optional string naming the object */
     inline void print(const std::string& name="") const {

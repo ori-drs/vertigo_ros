@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
             SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
 
             if (switchCounter == 0){
-              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(1));
 
             }
 
@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
             graph.push_back(adaptiveFactor);
 
             if (switchCounter == 0)
-            graph.add(PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+            graph.add(PriorFactorOutlierProcess<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model, adaptivePriorModel));
 
 
           }

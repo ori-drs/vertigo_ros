@@ -46,6 +46,7 @@ namespace vertigo {
           double w = weight_adaptive (error_dis, alpha.value(), c);
           weight_ = w;
           alpha.setWeight_z(w);
+          std::cout << "BetweenFactorAdaptive: set weight to shape parameter: " << std::to_string(weight_) << std::endl;
 
 
           error *= w;
