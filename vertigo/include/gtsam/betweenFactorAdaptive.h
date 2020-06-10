@@ -44,9 +44,9 @@ namespace vertigo {
 
           double c = 1; // c is scalling param set before optimisation
           double w = weight_adaptive (error_dis, alpha.value(), c);
-          weight_ = w;
+//          weight_ = w;
           alpha.setWeight_z(w);
-
+          cout << "[between factor] weight is: " << w << endl;
 
           error *= w;
 
@@ -78,11 +78,11 @@ namespace vertigo {
           return error;
         }
 
-      double getWeight() const {return weight_;}
+//      double getWeight() const {return weight_;}
 
     private:
       gtsam::BetweenFactor<VALUE> betweenFactor;
-      mutable double weight_;
+//      mutable double weight_;
 
       double weight_adaptive(double x, double alpha, double c) const {
         if (alpha == 2) return 1/pow(c,2);

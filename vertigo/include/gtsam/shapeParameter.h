@@ -20,7 +20,8 @@ namespace vertigo {
   struct ShapeParameter {
 
     /** default constructor */
-    ShapeParameter() : d_(2.0) {}
+    ShapeParameter() : d_(2.0) {
+    }
 
     /** wrap a double */
     ShapeParameter(double d) : d_(d) {
@@ -31,9 +32,12 @@ namespace vertigo {
     /** access the underlying value */
     double value() const { return d_; }
 
-    double weight_z() const {return weight_z_;}
+    void setWeight_z(double weight_z) const {
+      cout << "[alpha]alpha.weight_z is before: " << weight_z_ << endl;
+      weight_z_ = weight_z;
+      cout << "[alpha]alpha.weight_z is after: " << weight_z_ << endl;}
 
-    void setWeight_z(double weight_z) const { weight_z_ = weight_z; }
+    double weight_z() const {return weight_z_;}
 
     /** print @param s optional string naming the object */
     inline void print(const std::string& name="") const {
