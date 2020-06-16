@@ -76,6 +76,13 @@ void writeResults(Values &results, std::string outputFile)
       resultFile << "VERTEX_SWITCH " << key_value.value.value() << endl;
     }
   }
+
+  {
+    Values::ConstFiltered<ShapeParameter> result_switches = results.filter<ShapeParameter>();
+    foreach (const Values::ConstFiltered<ShapeParameter>::KeyValuePair& key_value, result_switches) {
+      resultFile << "SHAPE_PARAM " << key_value.value.value() << endl;
+    }
+  }
 }
 
 // ===================================================================
@@ -343,7 +350,8 @@ int main(int argc, char *argv[])
             SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
 
             if (switchCounter == 0){
-              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(1));
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+               graph.add(PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
 
             }
 
@@ -355,8 +363,8 @@ int main(int argc, char *argv[])
             boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model));
             graph.push_back(adaptiveFactor);
 
-            if (switchCounter == 0)
-            graph.add(PriorFactorOutlierProcess<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model, adaptivePriorModel));
+//            if (switchCounter == 0)
+//            graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
 
 
           }
@@ -427,7 +435,13 @@ int main(int argc, char *argv[])
     //cout << endl;
     Values results = isam2.calculateBestEstimate();
 
-    results.print();
+//    results.print();
+
+    // save factor graph as graphviz dot file
+    NonlinearFactorGraph factor_graph;
+    factor_graph = isam2.getFactorsUnsafe();
+    std::ofstream os(std::string("factor_graph.dot"));
+    factor_graph.saveGraph(os,results);
 
 
     timer.print(cout);
