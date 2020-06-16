@@ -46,7 +46,7 @@ namespace vertigo {
           double w = weight_adaptive (error_dis, alpha.value(), c);
           weight_ = w;
           alpha.setWeight_z(w);
-          std::cout << "BetweenFactorAdaptive: set weight to shape parameter: " << std::to_string(weight_) << std::endl;
+//          std::cout << "[BetweenFactorAdaptive] set weight to shape parameter: " << std::to_string(weight_) << std::endl;
 
 
           error *= w;
@@ -85,11 +85,16 @@ namespace vertigo {
       gtsam::BetweenFactor<VALUE> betweenFactor;
       mutable double weight_;
 
+      double epsilon = 1E-5;
+
       double weight_adaptive(double x, double alpha, double c) const {
+        double b, d;
+        b = abs(alpha-2)+epsilon;
+        if (alpha>=0) d = alpha+epsilon;
+        if (alpha<0)  d = alpha-epsilon;
+
         if (alpha == 2) return 1/pow(c,2);
-        else if (alpha == 0) return 2/(pow(x,2) + 2*pow(c,2));
-        else if (alpha <= -10) return (1/pow(c,2)) * exp(-0.5*pow(x/c,2));
-        else return (1/pow(c,2))*pow(pow(x/c,2)/abs(alpha-2)+1,0.5*alpha-1);
+        else return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
       }
 
   };

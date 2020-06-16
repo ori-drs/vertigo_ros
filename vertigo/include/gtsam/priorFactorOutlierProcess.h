@@ -31,51 +31,39 @@
 namespace vertigo {
 
 template<class VALUE>
-class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor3<VALUE, VALUE, ShapeParameter>
+class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 {
   public:
     PriorFactorOutlierProcess() {}
-    PriorFactorOutlierProcess(gtsam::Key key1, gtsam::Key key2, gtsam::Key key3, const VALUE& measured, const gtsam::SharedNoiseModel& modelBetween, const gtsam::SharedNoiseModel& modelPsi)
-    : gtsam::NoiseModelFactor3<VALUE, VALUE, ShapeParameter>(modelPsi, key1, key2, key3),
-      betweenFactorAdaptive(key1, key2, key3, measured, modelBetween) {}
+    PriorFactorOutlierProcess(gtsam::Key key, const VALUE& prior, const gtsam::SharedNoiseModel& modelPsi)
+    : gtsam::NoiseModelFactor1<ShapeParameter>(modelPsi,key),
+      priorFactor(key, prior){}
 
 
-    gtsam::Vector evaluateError(const VALUE& p1, const VALUE& p2, const ShapeParameter& alpha,
-                                  boost::optional<gtsam::Matrix&> H1 = boost::none,
-                                  boost::optional<gtsam::Matrix&> H2 =  boost::none,
-                                  boost::optional<gtsam::Matrix&> H3 =  boost::none) const
+    gtsam::Vector evaluateError(const ShapeParameter& alpha,
+                                boost::optional<gtsam::Matrix&> H =  boost::none) const
       {
 
       // Matias's method
-      gtsam::Vector errorBetween = betweenFactorAdaptive.evaluateError(p1, p2, alpha, H1, H2);
-      if (H1) *H1 = gtsam::Vector1(0.0);
-      if (H2) *H2 = gtsam::Vector1(0.0);
+      cout << "[priorFactor]alpha.weight_z is: " << alpha.weight_z() << endl;
+      cout << "[priorFactor]alpha.value is: " << alpha.value() << endl;
 
-      double weight = betweenFactorAdaptive.getWeight();
-      std::cout << "PriorFactorOutlierProcess: weight: " << std::to_string(weight) << std::endl;
+      double sqrtPsi = sqrt(Psi(alpha.value(), alpha.weight_z()));
+      double dPsi_dalpha = Psi_alpha(alpha.value(), alpha.weight_z());
 
-      std::cout << "alpha is:       " << alpha.value() << std::endl;
 
-      double psi = Psi(alpha.value(), weight);
-      double sqrtPsi = sqrt(psi);
-      double dPsi_dalpha = Psi_alpha(alpha.value(), weight);
-
-      std::cout << "Psi is:         " << psi << std::endl;
-      std::cout << "sqrtPsi is:     " << sqrtPsi << std::endl;
-      std::cout << "dPsi_dalpha is: " << dPsi_dalpha << std::endl;
+//      cout << "[prior factor]sqrtPsi is: " << sqrtPsi << endl;
+//      cout << "[prior factor]dPsi_dalpha is: " << dPsi_dalpha << endl;
 
       // calculate error ||sqrt(Psi)||^2 using Rosen et al. to use non Gaussian factor
       gtsam::Vector error = gtsam::Vector1(sqrtPsi);
-      // handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
-      double h3 = sqrtPsi > 0? 0.5 * (1.0/sqrtPsi * dPsi_dalpha) : 0.0;
-      if (H3) *H3 = gtsam::Vector1(h3);
-      //          std::cout << "error is: \n" << error << std::endl;
 
-      std::cout << "error is: " << error << std::endl;
-      std::cout << "H1 is: " << H1 << std::endl;
-      std::cout << "H2 is: " << H2 << std::endl;
-      std::cout << "H3 is: " << H3 << std::endl;
-      
+      // handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
+      double h = sqrtPsi > 0? 0.5 * (1.0/sqrtPsi * dPsi_dalpha) : 1E-2;
+      if (H) *H = gtsam::Vector1(h);
+
+//      std::cout << "[prior factor]H is: \n" << H << std::endl;
+//      std::cout << "[prior factor]error is: \n" << error << std::endl;
 
       return error;
       
@@ -107,44 +95,53 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor3<VALUE, VALUE, 
       }
 
   private:
-    //gtsam::PriorFactor<VALUE> priorFactor;
-    vertigo::BetweenFactorAdaptive<VALUE> betweenFactorAdaptive;
-
+    gtsam::PriorFactor<VALUE> priorFactor;
+//    vertigo::BetweenFactorAdaptive<VALUE> betweenFactorAdaptive;
+    ShapeParameter alpha_;
+    double epsilon_ = 1E-5;
     double Psi(double alpha, double z) const {
-      if (alpha==0) return -log(z)+z-1.0;
-      else if (alpha<=-10.0) return z*log(z)+1.0;
-      else{
-        double A = (abs(alpha - 2.0)/alpha);
-        double B = (1.0 - 0.5*alpha);
-        double C = pow(z, alpha/(alpha - 2.0));
-        double D = 0.5*alpha*z - 1.0;
 
-        std::cout << "A is: " << A << std::endl;
-        std::cout << "B is: " << B << std::endl;
-        std::cout << "C is: " << C << std::endl;
-        std::cout << "D is: " << D << std::endl;
+      double b;
+      b = abs(alpha-2)+epsilon_;
+      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
-        double result = A * (B*C + D);
-        std::cout << "result is: " << result << std::endl;
-
-        return result;
-      }
+      if (alpha=2.0) return 0;
+      else if (alpha<2.0) return (b/d)*((1-0.5*d)*pow(z,d/(d-2.0))+0.5*d*z-1);
     }
 
     double Psi_alpha(double alpha, double z) const {
-      if (alpha==0) return 0;
-      else if (alpha<=-10.0) return 0;
-      else{
-        return (pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)*(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z);
-      }
+
+      double b;
+      b = abs(alpha-2)+epsilon_;
+      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+
+      double Psi_b, Psi_d;
+
+      Psi_b = ((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
+
+      Psi_d = (b*((pow(z,d/(d-2.0))*(log(z)-1.0)+1.0)*d+2*pow(z,d/(d-2.0))-2.0))/((d-2.0)*d*d);
+
+      return Psi_b+Psi_d;
+//      if (alpha==0) return 0;
+//      else if (alpha<=-10.0) return 0;
+//      else{
+//        return (pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)*(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z);
+//      }
     }
 
     double Psi_z(double alpha, double z) const {
-      if (alpha==0) return 1.0-1.0/z;
-      else if (alpha<=-10.0) return log(z);
-      else{
-        return -((alpha-2.0)*(pow(z,alpha/(alpha-2.0))-z)/2.0*z);
-      }
+
+      double b;
+      b = abs(alpha-2)+epsilon_;
+      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+
+      return -(b*(pow(z,d/(d-2.0))-z))/(2.0*z);
+
+//      if (alpha==0) return 1.0-1.0/z;
+//      else if (alpha<=-10.0) return log(z);
+//      else{
+//        return -((alpha-2.0)*(pow(z,alpha/(alpha-2.0))-z)/2.0*z);
+//      }
     }
 
 };
