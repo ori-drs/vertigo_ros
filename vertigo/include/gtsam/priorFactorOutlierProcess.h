@@ -25,7 +25,7 @@
 #include <gtsam/base/Lie.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include "shapeParameter.h"
-#include "betweenFactorAdaptive.h"
+//#include "betweenFactorAdaptive.h"
 #include <boost/optional/optional_io.hpp>
 
 namespace vertigo {
@@ -37,7 +37,7 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
     PriorFactorOutlierProcess() {}
     PriorFactorOutlierProcess(gtsam::Key key, const VALUE& prior, const gtsam::SharedNoiseModel& modelPsi)
     : gtsam::NoiseModelFactor1<ShapeParameter>(modelPsi,key),
-      priorFactor(key, prior){}
+      priorFactor(key, prior){weight_=1.0;}
 
 
     gtsam::Vector evaluateError(const ShapeParameter& alpha,
@@ -45,10 +45,10 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
       {
 
       // Matias's method
-      cout << "[priorFactor]alpha.weight_z is: " << alpha.weight_z() << endl;
+      cout << "[priorFactor]weight is: " << weight_ << endl;
       cout << "[priorFactor]alpha.value is: " << alpha.value() << endl;
 
-      double sqrtPsi = sqrt(Psi(alpha.value(), alpha.weight_z()));
+      double sqrtPsi = sqrt(Psi(alpha.value(), weight_));
       double dPsi_dalpha = Psi_alpha(alpha.value(), alpha.weight_z());
 
 
@@ -94,9 +94,12 @@ class PriorFactorOutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter
         */
       }
 
+    void setWeight(double weight) {weight_ = weight;}
   private:
     gtsam::PriorFactor<VALUE> priorFactor;
 //    vertigo::BetweenFactorAdaptive<VALUE> betweenFactorAdaptive;
+    double weight_;
+
     ShapeParameter alpha_;
     double epsilon_ = 1E-5;
     double Psi(double alpha, double z) const {

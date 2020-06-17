@@ -12,6 +12,7 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include "gtsam/base/LieScalar.h"
 #include "gtsam/linear/NoiseModel.h"
+#include "priorFactorOutlierProcess.h"
 
 #include <iostream>
 using std::cout;
@@ -27,9 +28,9 @@ namespace vertigo {
   {
     public:
       BetweenFactorAdaptive() {}
-      BetweenFactorAdaptive(gtsam::Key key1, gtsam::Key key2, gtsam::Key key3, const VALUE& measured, const gtsam::SharedNoiseModel& model)
+      BetweenFactorAdaptive(gtsam::Key key1, gtsam::Key key2, gtsam::Key key3, const VALUE& measured, const gtsam::SharedNoiseModel& model, PriorFactorOutlierProcess<ShapeParameter>* outlierProcess)
       : gtsam::NoiseModelFactor3<VALUE, VALUE, ShapeParameter>(model, key1, key2, key3),
-        betweenFactor(key1, key2, measured, model) {}
+        betweenFactor(key1, key2, measured, model),outlierProcess_(outlierProcess) {}
 
       gtsam::Vector evaluateError(const VALUE& p1, const VALUE& p2, const ShapeParameter& alpha,
                                   boost::optional<gtsam::Matrix&> H1 = boost::none,
@@ -45,7 +46,8 @@ namespace vertigo {
           double c = 1; // c is scalling param set before optimisation
           double w = weight_adaptive (error_dis, alpha.value(), c);
           weight_ = w;
-          alpha.setWeight_z(w);
+          outlierProcess_->setWeight(w);
+//          alpha.setWeight_z(w);
 //          std::cout << "[BetweenFactorAdaptive] set weight to shape parameter: " << std::to_string(weight_) << std::endl;
 
 
@@ -84,6 +86,7 @@ namespace vertigo {
     private:
       gtsam::BetweenFactor<VALUE> betweenFactor;
       mutable double weight_;
+      PriorFactorOutlierProcess<ShapeParameter>* outlierProcess_;
 
       double epsilon = 1E-5;
 
