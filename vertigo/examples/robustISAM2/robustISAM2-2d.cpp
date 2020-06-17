@@ -31,7 +31,7 @@ namespace po = boost::program_options;
 #include "betweenFactorMaxMix.h"
 #include "betweenFactorAdaptive.h"
 #include "shapeParameter.h"
-#include "priorFactorOutlierProcess.h"
+#include "outlierProcess.h"
 #include "timer.h"
 using namespace vertigo;
 
@@ -354,7 +354,7 @@ int main(int argc, char *argv[])
               graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             }
 
-            boost::shared_ptr<PriorFactorOutlierProcess<ShapeParameter>> outlierProcess(new PriorFactorOutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+            boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             graph.push_back(outlierProcess);
 
             // create switchable odometry factor

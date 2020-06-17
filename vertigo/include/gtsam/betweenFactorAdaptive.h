@@ -12,7 +12,7 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include "gtsam/base/LieScalar.h"
 #include "gtsam/linear/NoiseModel.h"
-#include "priorFactorOutlierProcess.h"
+#include "outlierProcess.h"
 
 #include <iostream>
 using std::cout;
@@ -28,7 +28,7 @@ namespace vertigo {
   {
     public:
       BetweenFactorAdaptive() {}
-      BetweenFactorAdaptive(gtsam::Key key1, gtsam::Key key2, gtsam::Key key3, const VALUE& measured, const gtsam::SharedNoiseModel& model, PriorFactorOutlierProcess<ShapeParameter>* outlierProcess)
+      BetweenFactorAdaptive(gtsam::Key key1, gtsam::Key key2, gtsam::Key key3, const VALUE& measured, const gtsam::SharedNoiseModel& model, OutlierProcess<ShapeParameter>* outlierProcess)
       : gtsam::NoiseModelFactor3<VALUE, VALUE, ShapeParameter>(model, key1, key2, key3),
         betweenFactor(key1, key2, measured, model),outlierProcess_(outlierProcess) {}
 
@@ -86,7 +86,7 @@ namespace vertigo {
     private:
       gtsam::BetweenFactor<VALUE> betweenFactor;
       mutable double weight_;
-      PriorFactorOutlierProcess<ShapeParameter>* outlierProcess_;
+      OutlierProcess<ShapeParameter>* outlierProcess_;
 
       double epsilon = 1E-5;
 
