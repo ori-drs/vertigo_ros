@@ -78,8 +78,8 @@ void writeResults(Values &results, std::string outputFile)
   }
 
   {
-    Values::ConstFiltered<ShapeParameter> result_switches = results.filter<ShapeParameter>();
-    foreach (const Values::ConstFiltered<ShapeParameter>::KeyValuePair& key_value, result_switches) {
+    Values::ConstFiltered<ShapeParameter> result_adaptive = results.filter<ShapeParameter>();
+    foreach (const Values::ConstFiltered<ShapeParameter>::KeyValuePair& key_value, result_adaptive) {
       resultFile << "SHAPE_PARAM " << key_value.value.value() << endl;
     }
   }
@@ -209,6 +209,10 @@ int main(int argc, char *argv[])
       return 1;
     }
 
+    bool odoOnly;
+    if (vm.count("odoOnly")) odoOnly=true;
+    else odoOnly=false;
+
     bool verbose;
     if (vm.count("verbose")) verbose=true;
     else verbose=false;
@@ -300,17 +304,18 @@ int main(int argc, char *argv[])
     	      return 0;
     	    }
     	    initialEstimate.insertPose(p.id, predecessorPose * Pose2(e.x, e.y, e.th));
-    	    globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose2(e.x, e.y, e.th) );
+          globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose2(e.x, e.y, e.th) );
           timer.toc("initialize");
     	  }
 
         timer.tic("addEdges");
 
     		if (!e.switchable && !e.maxMix) {
-    		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
+          if (vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
     		    graph.addOdometry(e.i, e.j, Pose2(e.x, e.y, e.th), odom_model);
+//            cout << "odom edge is: " << e.j << "----" << e.i << endl;
     		  }
     		}
     		else if (e.switchable && !vm.count("odoOnly")) {

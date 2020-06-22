@@ -43,7 +43,7 @@ namespace vertigo {
 
           double error_dis = this->noiseModel_->distance(error);
 
-          double c = 1; // c is scalling param set before optimisation
+          double c = 1.0; // c is scalling param set before optimisation
           double w = weight_adaptive (error_dis, alpha.value(), c);
           weight_ = w;
           outlierProcess_->setWeight(w);
