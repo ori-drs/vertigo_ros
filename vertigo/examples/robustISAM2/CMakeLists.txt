@@ -28,8 +28,8 @@ add_library(fullSLAM SHARED ${PROJECT_SOURCE_DIR}/../../src/fullSLAM.cpp)
 add_executable(robustISAM2-2d robustISAM2-2d.cpp)
 target_link_libraries(robustISAM2-2d ${LINK_LIBRARIES} planarSLAM gtsam)
 
-#add_executable(robustISAM2-3d robustISAM2-3d.cpp)
-#target_link_libraries(robustISAM2-3d ${LINK_LIBRARIES} fullSLAM gtsam)
+add_executable(robustISAM2-3d robustISAM2-3d.cpp)
+target_link_libraries(robustISAM2-3d ${LINK_LIBRARIES} fullSLAM gtsam)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}) # specify where the resulting binaries should be created
 

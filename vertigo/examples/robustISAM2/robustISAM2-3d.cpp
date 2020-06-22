@@ -34,6 +34,7 @@ namespace po = boost::program_options;
 #include "switchVariableSigmoid.h"
 #include "shapeParameter.h"
 #include "betweenFactorMaxMix.h"
+#include "outlierProcess.h"
 #include "timer.h"
 using namespace vertigo;
 
@@ -79,6 +80,13 @@ void writeResults(Values &results, std::string outputFile)
     Values::ConstFiltered<SwitchVariableSigmoid> result_switches = results.filter<SwitchVariableSigmoid>();
     foreach (const Values::ConstFiltered<SwitchVariableSigmoid>::KeyValuePair& key_value, result_switches) {
       resultFile << "VERTEX_SWITCH " << key_value.value.value() << endl;
+    }
+  }
+
+  {
+    Values::ConstFiltered<ShapeParameter> result_adaptive = results.filter<ShapeParameter>();
+    foreach (const Values::ConstFiltered<ShapeParameter>::KeyValuePair& key_value, result_adaptive) {
+      resultFile << "SHAPE_PARAM " << key_value.value.value() << endl;
     }
   }
 }
@@ -353,7 +361,7 @@ int main(int argc, char *argv[])
             // create switch prior factor
             SharedNoiseModel switchPriorModel = noiseModel::Diagonal::Sigmas(Vector1(1.0));
             SharedNoiseModel switchPriorModelHuber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), switchPriorModel);
-            boost::shared_ptr<PriorFactor<SwitchVariableLinear> > switchPriorFactor (new PriorFactor<SwitchVariableLinear> (Symbol('s',switchCounter), SwitchVariableLinear(1.0), switchPriorModelHuber));
+            boost::shared_ptr<PriorFactor<SwitchVariableLinear> > switchPriorFactor (new PriorFactor<SwitchVariableLinear> (Symbol('s',switchCounter), SwitchVariableLinear(1.0), switchPriorModel));
             graph.push_back(switchPriorFactor);
 
 
@@ -361,7 +369,7 @@ int main(int argc, char *argv[])
             SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
             // robust error model
             SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(0.1), odom_model);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model_huber));
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
             graph.push_back(switchableFactor);
     		  }
           else if (useSigmoid) {
@@ -372,41 +380,37 @@ int main(int argc, char *argv[])
     		    // create switch prior factor
             SharedNoiseModel switchPriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
             SharedNoiseModel switchPriorModelHuber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), switchPriorModel);
-            boost::shared_ptr<PriorFactor<SwitchVariableSigmoid> > switchPriorFactor (new PriorFactor<SwitchVariableSigmoid> (Symbol('s',switchCounter), SwitchVariableSigmoid(10.0), switchPriorModelHuber));
+            boost::shared_ptr<PriorFactor<SwitchVariableSigmoid> > switchPriorFactor (new PriorFactor<SwitchVariableSigmoid> (Symbol('s',switchCounter), SwitchVariableSigmoid(10.0), switchPriorModel));
     		    graph.push_back(switchPriorFactor);
 
     		    // create switchable odometry factor
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
             // robust error model
             SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), odom_model);
-            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model_huber));
+            boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
     		    graph.push_back(switchableFactor);
     		  }
           else if (useAdaptive) {
-            // create shape param alpha (a)
-           switchCounter++;
-//            initialEstimate.insert(Symbol('a'),ShapeParameter(2.0));
-//            initialEstimate.print(Symbol('a'));
+            switchCounter++;
             // create switch prior factor
             SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
-//            SharedNoiseModel adaptivePriorModelHuber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), adaptivePriorModel);
-//            boost::shared_ptr<PriorFactor<ShapeParameter> > adaptivePriorFactor (new PriorFactor<ShapeParameter> (Symbol('a'), ShapeParameter(2.0), adaptivePriorModel));
-
-//            graph.push_back(adaptivePriorFactor);
 
             if (switchCounter == 0){
               initialEstimate.insert(fullSLAM::AlphaKey(), ShapeParameter(2.0));
-              graph.add(PriorFactor<ShapeParameter>(fullSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+//              graph.add(PriorFactor<ShapeParameter>(fullSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
             }
+
+            boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(fullSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+            graph.push_back(outlierProcess);
 
 
             // create switchable odometry factor
             SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
             // robust error model
 //            SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), odom_model);
-            boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), fullSLAM::AlphaKey(), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model));
-            graph.push_back(adaptiveFactor);
+            boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose3>(fullSLAM::PoseKey(e.i), fullSLAM::PoseKey(e.j), fullSLAM::AlphaKey(), Pose3(Rot3(e.qw,e.qx,e.qy,e.qz), Point3(e.x, e.y, e.z)), odom_model, outlierProcess.get()));
 
+            graph.push_back(adaptiveFactor);
 
 
           }
@@ -482,7 +486,7 @@ int main(int argc, char *argv[])
 
 
     // === do final estimation ===
-    cout << "tesssssttttttttt" << endl;
+//    cout << "tesssssttttttttt" << endl;
     Values results = isam2.calculateBestEstimate();
     //results.print();
 
