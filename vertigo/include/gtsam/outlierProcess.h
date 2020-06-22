@@ -49,7 +49,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 //      cout << "[priorFactor]alpha.value is: " << alpha.value() << endl;
 
       double sqrtPsi = sqrt(Psi(alpha.value(), weight_));
-      double dPsi_dalpha = Psi_alpha(alpha.value(), alpha.weight_z());
+      double dPsi_dalpha = Psi_alpha(alpha.value(), weight_);
 
 
 //      cout << "[prior factor]sqrtPsi is: " << sqrtPsi << endl;
