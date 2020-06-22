@@ -31,13 +31,13 @@ namespace vertigo {
     /** access the underlying value */
     double value() const { return d_; }
 
-    double weight_z() const {return weight_z_;}
+//    double weight_z() const {return weight_z_;}
 
-    void setWeight_z(double weight_z) const { 
+//    void setWeight_z(double weight_z) const {
       
-      weight_z_ = weight_z;
-//      std::cout << "ShapeParameter: trying to set weight_z_ to  " << std::to_string(weight_z) << ". Result:" << std::to_string(weight_z_) << std::endl;
-      }
+//      weight_z_ = weight_z;
+////      std::cout << "ShapeParameter: trying to set weight_z_ to  " << std::to_string(weight_z) << ". Result:" << std::to_string(weight_z_) << std::endl;
+//      }
 
     /** print @param s optional string naming the object */
     inline void print(const std::string& name="") const {
@@ -104,7 +104,7 @@ namespace vertigo {
 
   private:
       double d_;
-      mutable double weight_z_=1.0;
+//      mutable double weight_z_;
   };
 }
 
