@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
     	else  {
         timer.tic("update");
     	  isam2.update(graph, initialEstimate);
-        cout << "counter: " << counter << endl;
+        //cout << "counter: " << counter << endl;
         timer.toc("update");
     	}
 
