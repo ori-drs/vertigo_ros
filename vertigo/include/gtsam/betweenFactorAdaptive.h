@@ -71,7 +71,7 @@ namespace vertigo {
 //          if (H3) *H3 = error;
 
 
-          if (alpha.value()==2 || alpha.value()<= -10){
+          if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -10){
             if (H3) *H3 = error;
           } else {
             if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
@@ -109,12 +109,12 @@ namespace vertigo {
 
         double w_b, w_d;
 
-        w_b = (d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b),d/2-2)/(pow(c,4)*pow(b,2));
+        w_b = ((d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b)+1,(d/2-2)))/(pow(c,4)*pow(b,2));
 
-        w_d = pow(pow(x,2)/(b*pow(c,2))+1,d/2-1)*log(pow(x,2)/(b*pow(c,2))+1)/(2*pow(c,2));
+        w_d = pow(pow(x,2)/(b*pow(c,2))+1,(d/2-1))*log(pow(x,2)/(b*pow(c,2))+1)/(2*pow(c,2));
 
-        if (alpha == 2) return 1/pow(c,2);
-        else return w_b + w_d;
+//        if (alpha == 2) return 1/pow(c,2);
+        return w_b + w_d;
       }
 
   };
