@@ -70,12 +70,13 @@ namespace vertigo {
           if (H2) *H2 = *H2 * w;
 //          if (H3) *H3 = error;
 
-          if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -10){
+
+          if (alpha.value()==2 || alpha.value()<= -10){
             if (H3) *H3 = error;
           } else {
-            if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error_dis/c,2)/(alpha.value()-2)+1,-1)*
-                                   pow(error_dis/c,2)/pow(alpha.value()-2,2));
+            if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
           }
+
 
 //          std::cout << "error is: \n" << error << std::endl;
           return error;
@@ -98,6 +99,22 @@ namespace vertigo {
 
         if (alpha == 2) return 1/pow(c,2);
         else return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
+      }
+
+      double weight_adaptive_alpha(double x, double alpha, double c) const {
+        double b, d;
+        b = abs(alpha-2)+epsilon;
+        if (alpha>=0) d = alpha+epsilon;
+        if (alpha<0)  d = alpha-epsilon;
+
+        double w_b, w_d;
+
+        w_b = (d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b),d/2-2)/(pow(c,4)*pow(b,2));
+
+        w_d = pow(pow(x,2)/(b*pow(c,2))+1,d/2-1)*log(pow(x,2)/(b*pow(c,2))+1)/(2*pow(c,2));
+
+        if (alpha == 2) return 1/pow(c,2);
+        else return w_b + w_d;
       }
 
   };

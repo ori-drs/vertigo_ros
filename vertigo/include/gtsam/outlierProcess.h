@@ -108,7 +108,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       b = abs(alpha-2)+epsilon_;
       double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
-      if (alpha=2.0) return 0;
+      if (alpha==2.0) return 0;
       else if (alpha<2.0) return (b/d)*((1-0.5*d)*pow(z,d/(d-2.0))+0.5*d*z-1);
     }
 
@@ -120,7 +120,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 
       double Psi_b, Psi_d;
 
-      Psi_b = ((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
+      Psi_b = -((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
 
       Psi_d = (b*((pow(z,d/(d-2.0))*(log(z)-1.0)+1.0)*d+2*pow(z,d/(d-2.0))-2.0))/((d-2.0)*d*d);
 
