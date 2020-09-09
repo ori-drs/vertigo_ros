@@ -70,11 +70,14 @@ namespace vertigo {
           if (H2) *H2 = *H2 * w;
 //          if (H3) *H3 = error;
 
-
           if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -10){
-            if (H3) *H3 = error;
+            if (H3) *H3 = Eigen::Vector3d(1,1,0)*error;
+
+            // std::cout << "alpha.value() is:" <<alpha.value() << std::endl;
+            // std::cout << "H3 is:\n" <<H3 << std::endl;
           } else {
-            if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
+            if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error_dis/c,2)/(alpha.value()-2)+1,-1)*
+                                   pow(error_dis/c,2)/pow(alpha.value()-2,2));
           }
 
 
