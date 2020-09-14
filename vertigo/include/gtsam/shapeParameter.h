@@ -19,13 +19,15 @@ namespace vertigo {
    */
   struct ShapeParameter {
 
+    static constexpr double MIN = -10.0;
+    static constexpr double epsilon_ = 1e-5;
     /** default constructor */
     ShapeParameter() : d_(2.0) {}
 
     /** wrap a double */
     ShapeParameter(double d) : d_(d) {
-      if (d_ > 2.0) d_= 2.0; // maximum shape param is 2.0
-      if (d_ < -10) d_= -10; // minimum shape param is -10.0
+      if (d_ >= 2.0) d_=  2.0 - epsilon_; // maximum shape param is 2.0
+      if (d_ < MIN) d_= MIN; // minimum shape param is -10.0
     }
 
     /** access the underlying value */
@@ -59,8 +61,10 @@ namespace vertigo {
     inline ShapeParameter retract(const gtsam::Vector& v) const {
       double x = value() + v(0);
 
-      if (x>2.0) x=2.0;
-      else if (x<-10.0) x=-10.0;
+      //std::cout << "Shape parameter actual: " << value() << ", dx: " << v(0) << ", new: " << x << std::endl;
+
+      if (x > 2.0) x = 2.0;
+      else if (x < MIN) x = MIN;
 
       return ShapeParameter(x);
     }

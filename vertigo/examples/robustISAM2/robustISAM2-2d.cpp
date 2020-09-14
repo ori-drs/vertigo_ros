@@ -243,6 +243,7 @@ int main(int argc, char *argv[])
     // === set up iSAM2 ===
     //ISAM2Params isam2Params; already defined on top
     ISAM2DoglegParams doglegParams;
+    //doglegParams.setVerbose(true);
     ISAM2GaussNewtonParams gaussParams;
 
     if (vm.count("dogleg")) isam2Params.optimizationParams = doglegParams;
@@ -352,10 +353,10 @@ int main(int argc, char *argv[])
           else if (useAdaptive) {
            switchCounter++;
             // create switch prior factor
-            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
+            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(1.0));
 
             if (switchCounter == 0){
-              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(1.9));
 //              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             }
 
@@ -404,11 +405,12 @@ int main(int argc, char *argv[])
     	  ISAM2Result result = isam2.update(graph, initialEstimate);
         timer.toc("update");
     	  cout << "cliques: " << result.cliques << "\terr_before: " << *(result.errorBefore) << "\terr_after: " << *(result.errorAfter) << "\trelinearized: " << result.variablesRelinearized << endl;
+        //isam2.printStats();
     	}
     	else  {
         timer.tic("update");
     	  isam2.update(graph, initialEstimate);
-        //cout << "counter: " << counter << endl;
+        cout << "counter: " << counter << endl;
         timer.toc("update");
     	}
 

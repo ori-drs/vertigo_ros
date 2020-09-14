@@ -38,113 +38,157 @@ namespace vertigo {
                                   boost::optional<gtsam::Matrix&> H3 =  boost::none) const
         {
 
-          // calculate error
+          // Calculate error
           gtsam::Vector error = betweenFactor.evaluateError(p1, p2, H1, H2);
 
-          double error_dis = this->noiseModel_->distance(error);
+          // Calculate weighted error
+          double weightedError = this->noiseModel_->distance(error);
 
-          double c = 1.0; // c is scalling param set before optimisation
-          double w = weight_adaptive (error_dis, alpha.value(), c);
+          // Recover weight and set it up in outlierProcess factor
+          double c = 1.0; // c is scaling param set before optimisation
+          double w = weightAdaptive (weightedError, alpha.value(), c);
           weight_ = w;
           outlierProcess_->setWeight(w);
-//          alpha.setWeight_z(w);
-//          std::cout << "[BetweenFactorAdaptive] set weight to shape parameter: " << std::to_string(weight_) << std::endl;
 
-
-          error *= w;
-
-          /**
-            * A General and Adaptive Robust Loss Function by Jonathan T. Barron (https://arxiv.org/pdf/1701.03077.pdf)
-            * which  present a generalization of the Cauchy/Lorentzian, Geman-McClure, Welsch/Leclerc,
-            * generalized Charbonnier, Charbonnier/pseudo-Huber/L1-L2, and L2 loss functions
-            * Name        Symbol            Adaptive Kernel
-            * Residual    \rho(r,alpha,c)   1/2*(r/c)^2 if alpha=2, log(1/2*(r/c)^2+1) if alpha=0, 1-exp(-1/2*(r/c)^2)     if alpha=-inf, |alpha-2|/alpha*[((r/c)^2/|alpha-2| +1)^(alpha/2)-1] otherwise
-            * Derivative  \phi(x)           r/c^2       if alpha=2, 2r/(r^2+2c^2)      if alpha=0, r/c^2*exp(-1/2*(r/c)^2) if alpha=-inf, r/c^2*((r/c)^2/|alpha-2|+1)^(alpha/2-1)              otherwise
-            * Weight      w(x)=\phi(r)/r    1/c^2       if alpha=2, 2/(r^2+2c^2)       if alpha=0, 1/c^2*exp(-1/2*(r/c)^2) if alpha=-inf, 1/c^2*((r/c)^2/|alpha-2|+1)^(alpha/2-1)              otherwise
-            * where r is the residual, alpha is the shape parameter and c>0 is scale param which controls the size of the loss's quadratic bowl near r=0 (default c=1)
-            */
-
-
-          // handle derivatives MR: Need to be modified according to adaptive kernel
+          // Jacobians
+          // The Jacobians wrt the poses should be scaled
           if (H1) *H1 = *H1 * w;
           if (H2) *H2 = *H2 * w;
-//          if (H3) *H3 = error;
-          cout << "alpha value is: " << alpha.value() << endl;
-          std::cout << "error is: \n" << error << std::endl;
-          if (alpha.value()==2 || abs(alpha.value())<=0.01 || alpha.value()<= -10){
-            if (error.rows() == 3){
-              if (H3) *H3 = error;
-            } else {
+          // The Jacobian wrt alpha should be handled accordingly
+          if (H3) *H3 = error * weightAdaptiveDerivativeAlpha(weightedError, alpha.value(), c);
 
-              gtsam::Vector6 vec;
-              vec[0]=1.0;vec[1]=1.0;vec[2]=1.0;vec[3]=0.0;vec[4]=0.0;vec[5]=0.0;
-              if (H3) *H3 = error;
-//              cout << "H3 is:\n " << H3 << endl;
-            }
+          // Scale factor error by the weight from the adaptive kernel
+          error *= w;
 
+          // std::cout << "H1: " << H1 << std::endl;
+          // std::cout << "H2: " << H2 << std::endl;
+          // std::cout << "H3: " << H3 << std::endl;
+          // std::cout << "error: " << error << std::endl;
 
-//             std::cout << "alpha.value() is:" <<alpha.value() << std::endl;
-            // std::cout << "H3 is:\n" <<H3 << std::endl;
-          } else {
-//             cout << "alpha is: " << alpha.value() << endl;
-//             if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
-             if (H3) *H3 = error * (-w*(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
-                                    pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
-
-//             if (H3) *H3 = error * w*(0.5*(log(pow(error_dis/c,2)/abs(alpha.value()-2)+1))-(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
-//             pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
-//            cout << "weight_adaptive_alpha is: " << weight_adaptive_alpha(error_dis, alpha.value(), c) << endl;
-          }
-
-
-//          std::cout << "error is: \n" << error << std::endl;
           return error;
         }
 
       double getWeight() const {return weight_;}
 
     private:
+      // Tolerance used for singularities
+      double epsilon_ = 1E-5;
+      
+      // Use practical implementation flag
+      bool usePractical_ = true;
+      
+      // Internal instance of non-adaptive BetweenFactor
       gtsam::BetweenFactor<VALUE> betweenFactor;
+      
+      // Adaptive weight
       mutable double weight_;
+      
+      // Hack: Pointer to outlierProcess factor
       OutlierProcess<ShapeParameter>* outlierProcess_;
 
-      double epsilon = 1E-5;
-
-      double weight_adaptive(double x, double alpha, double c) const {
-        // practical
-//        double b, d;
-//        b = abs(alpha-2)+epsilon;
-//        if (alpha>=0) d = alpha+epsilon;
-//        if (alpha<0)  d = alpha-epsilon;
-
-//        return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
-
-        // analytical
-        if (alpha == 2) return 1/pow(c,2);
-        else if (abs(alpha)<=0.01) return 2/(pow(x,2)+2*pow(c,2));
-        else if (alpha <= -10) return 1/pow(c,2) * exp(-0.5*pow(x/c,2));
-        else return (1/pow(c,2))*pow(pow(x/c,2)/((abs(alpha-2)))+1,(0.5*alpha-1));
-
+    /**
+    * A General and Adaptive Robust Loss Function by Jonathan T. Barron (https://arxiv.org/pdf/1701.03077.pdf)
+    * which  present a generalization of the Cauchy/Lorentzian, Geman-McClure, Welsch/Leclerc,
+    * generalized Charbonnier, Charbonnier/pseudo-Huber/L1-L2, and L2 loss functions
+    * Name        Symbol            Adaptive Kernel
+    * Residual    \rho(r,alpha,c)   1/2*(r/c)^2 if alpha=2, log(1/2*(r/c)^2+1) if alpha=0, 1-exp(-1/2*(r/c)^2)     if alpha=-inf, |alpha-2|/alpha*[((r/c)^2/|alpha-2| +1)^(alpha/2)-1] otherwise
+    * Derivative  \phi(x)           r/c^2       if alpha=2, 2r/(r^2+2c^2)      if alpha=0, r/c^2*exp(-1/2*(r/c)^2) if alpha=-inf, r/c^2*((r/c)^2/|alpha-2|+1)^(alpha/2-1)              otherwise
+    * Weight      w(x)=\phi(r)/r    1/c^2       if alpha=2, 2/(r^2+2c^2)       if alpha=0, 1/c^2*exp(-1/2*(r/c)^2) if alpha=-inf, 1/c^2*((r/c)^2/|alpha-2|+1)^(alpha/2-1)              otherwise
+    * where r is the residual, alpha is the shape parameter and c>0 is scale param which controls the size of the loss's quadratic bowl near r=0 (default c=1)
+    */
+    double weightAdaptive(double x, double alpha, double c) const{
+      double w;
+      
+      if(usePractical_){
+        w = weightAdaptivePractical(x, alpha, c);
+      } else{
+        w = weightAdaptiveAnalytical(x, alpha, c);
       }
 
-      double weight_adaptive_alpha(double x, double alpha, double c) const {
-        // practical
-//        double b, d;
-//        b = abs(alpha-2)+epsilon;
-//        if (alpha>=0) d = alpha+epsilon;
-//        if (alpha<0)  d = alpha-epsilon;
+      // std::cout << "weightAdaptive(x=" << x << ", alpha=" << alpha << ", c=" << c << ") : " << w << std::endl;
 
-//        double w_b, w_d;
-//        w_b = -((d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b)+1,(d/2-2)))/(pow(c,4)*pow(b,2))*(alpha-2)/abs(alpha-2);
-//        w_d = (pow(pow(x,2)/(b*pow(c,2))+1,(d/2-1))*log(pow(x,2)/(b*pow(c,2))+1))/(2*pow(c,2));
-//        return (w_b + w_d);
+      return w;
+    }
+    
+    double weightAdaptiveDerivativeAlpha(double x, double alpha, double c) const{
+      double dw;
 
-        // analytical
-        if (alpha == 2 || abs(alpha)<=0.01 || alpha <= -10) return 0;
-        else return (1/pow(c,2))*pow(pow(x,2)/(pow(c,2)*abs(alpha-2))+1,alpha/2-1)*(log(pow(x,2)/(pow(c,2)*abs(alpha-2))+1))/2-
-                    (pow(x,2)*(alpha/2-1))/(pow(c,2)*(pow(x,2)/(pow(c,2)*abs(alpha-2))+1)*abs(alpha-2)*(alpha-2));
+      if(usePractical_){
+        dw = weightAdaptivePracticalDerivativeAlpha(x, alpha, c);
 
+        //  // Check derivative by simple finite differences
+        // double w_m = weightAdaptivePractical(x, alpha - epsilon_, c); // psi(i-1)
+        // double w = weightAdaptivePractical(x, alpha, c); // psi(i+1)
+        // double dw_numeric = (w - w_m) / epsilon_;
+
+        // std::cout << "dw: "<< dw << ", dw_numeric: " << dw_numeric << std::endl;
+
+      } else{
+        dw = weightAdaptiveAnalyticalDerivativeAlpha(x, alpha, c);
       }
+
+      // std::cout << "weightAdaptiveDerivativeAlpha(x=" << x << ", alpha=" << alpha << ", c=" << c << ") : " << dw << std::endl;
+
+      return dw;
+    }
+
+    // Analytical expressions
+    double weightAdaptiveAnalytical(double x, double alpha, double c) const {
+      double w;
+
+      if (alpha >= 2){
+        w = 1.0 / pow(c,2);
+
+      } else if (abs(alpha) <= epsilon_){
+        w = 2.0 / (pow(x, 2) + 2 * pow(c, 2));
+
+      } else if (alpha <= ShapeParameter::MIN){
+        w = 1 / pow(c, 2) * exp(-0.5 * pow(x/c, 2));
+
+      } else{
+        w = (1/pow(c,2)) * pow( pow(x/c, 2) / abs(alpha-2) + 1, (0.5*alpha-1));
+      }
+
+      return w;
+    }
+
+    double weightAdaptiveAnalyticalDerivativeAlpha(double x, double alpha, double c) const {
+      double dw;
+
+      if (alpha >= 2 || abs(alpha)<= epsilon_ || alpha <= ShapeParameter::MIN){
+        dw = 0;
+      }
+      else{
+        dw = pow(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)), 0.5*alpha - 1)*(0.5*log(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2))) - pow(x, 2)*(0.5*alpha - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/(pow(c, 2)*(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)))*pow(alpha - 2, 2)))/pow(c, 2);
+      }
+
+      return dw;
+    }
+
+    double weightAdaptivePractical(double x, double alpha, double c) const {
+
+      double b = abs(alpha - 2.0) + epsilon_;
+      double d = alpha >= 0? alpha + epsilon_ : alpha - epsilon_;
+      
+      double w = (1/pow(c,2)) * pow( pow(x/c, 2)/b + 1, (0.5*d - 1) );
+
+      return w;
+    }
+
+    double weightAdaptivePracticalDerivativeAlpha(double x, double alpha, double c) const {
+      
+      double b = abs(alpha - 2.0) + epsilon_;
+      double d = alpha >= 0? alpha + epsilon_ : alpha - epsilon_;
+
+      double dw_db = -1.0*pow(x, 2)*pow(1 + pow(x, 2)/(b*pow(c, 2)), 0.5*d - 1)*(0.5*d - 1)/(pow(b, 2)*pow(c, 4)*(1 + pow(x, 2)/(b*pow(c, 2))));
+      double dw_dd = 0.5*pow(1 + pow(x, 2)/(b*pow(c, 2)), 0.5*d - 1)*log(1 + pow(x, 2)/(b*pow(c, 2)))/pow(c, 2);
+      double db_dalpha = (((alpha - 2) > 0) - ((alpha - 2) < 0));
+      double dd_dalpha = 1.0;
+
+      double dw = dw_db * db_dalpha + dw_dd * dd_dalpha;
+
+      return dw;
+    }
 
   };
 

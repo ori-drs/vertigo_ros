@@ -42,94 +42,147 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 
     gtsam::Vector evaluateError(const ShapeParameter& alpha,
                                 boost::optional<gtsam::Matrix&> H =  boost::none) const
-      {
-
-      // Matias's method
-//      cout << "[priorFactor]weight is: " << weight_ << endl;
-//      cout << "[priorFactor]alpha.value is: " << alpha.value() << endl;
+    {
 
       double sqrtPsi = sqrt(Psi(alpha.value(), weight_));
-      double dPsi_dalpha = Psi_alpha(alpha.value(), weight_);
+      double dPsi_dalpha = PsiDerivativeAlpha(alpha.value(), weight_);
 
-
-//      cout << "[prior factor]sqrtPsi is: " << sqrtPsi << endl;
-//      cout << "[prior factor]dPsi_dalpha is: " << dPsi_dalpha << endl;
-
-      // calculate error ||sqrt(Psi)||^2 using Rosen et al. to use non Gaussian factor
+      // Calculate error ||sqrt(Psi)||^2 using Rosen et al. to use non-Gaussian factor
       gtsam::Vector error = gtsam::Vector1(sqrtPsi);
 
-      // handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
-      double h = sqrtPsi > 0? 0.5 * (1.0/sqrtPsi * dPsi_dalpha) : 1E-2;
+      // Handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
+      double h = sqrtPsi > 0? 0.5 * (1.0 / sqrtPsi * dPsi_dalpha) : epsilon_;
       if (H) *H = gtsam::Vector1(h);
 
-//      std::cout << "[prior factor]H is: \n" << H << std::endl;
-//      std::cout << "[prior factor]error is: \n" << error << std::endl;
+      // std::cout << "H: " << H << std::endl;
+      // std::cout << "error: " << error << std::endl;
 
       return error;
-      
-
-      /*
-        // calculate error
-        gtsam::Vector error = priorFactor.evaluateError(alpha, H); // how to compute error?
-
-        std::cout << "OutlierProcess: weight from shape parameter: " << std::to_string(alpha.weight_z()) << std::endl;
-
-        gtsam::Vector a = gtsam::ones(3);
-        a[0] = Psi(2.0,1.0);
-        a[1] = Psi_z(2.0,1.0);
-        a[2] = Psi_alpha(2.0,1.0);
-
-        gtsam::Vector b = gtsam::ones(3);
-        b[1] = alpha.weight_z() - 1.0;
-        b[2] = error[0];
-
-
-        error = a.transpose()*b;
-
-        // handle derivatives
-        if (H) *H = *H * Psi_alpha(2.0,1.0); //what should I put here?
-
-//          std::cout << "error is: \n" << error << std::endl;
-        return error;
-        */
-      }
-
-    void setWeight(double weight) {weight_ = weight;}
-  private:
-    gtsam::PriorFactor<VALUE> priorFactor;
-//    vertigo::BetweenFactorAdaptive<VALUE> betweenFactorAdaptive;
-    double weight_;
-
-    ShapeParameter alpha_;
-    double epsilon_ = 1E-5;
-    double Psi(double alpha, double z) const {
-
-      double b;
-      b = abs(alpha-2)+epsilon_;
-      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
-
-      if (alpha==2.0) return 0;
-      else if (alpha<2.0) return (b/d)*((1-0.5*d)*pow(z,d/(d-2.0))+0.5*d*z-1);
     }
 
-    double Psi_alpha(double alpha, double z) const {
+    // Interface to set the weight externally
+    void setWeight(double weight) { weight_ = weight; }
 
-      double b;
-      b = abs(alpha-2)+epsilon_;
-      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+  private:
+    // Tolerance used for singularities
+    const double epsilon_ = 1E-5;
 
-      double Psi_b, Psi_d;
+    // Use practical implementation flag
+    bool usePractical_ = true;
 
-      Psi_b = -((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
+    // Internal instance of prior factor
+    gtsam::PriorFactor<VALUE> priorFactor;
 
-      Psi_d = (b*((pow(z,d/(d-2.0))*(log(z)-1.0)+1.0)*d+2*pow(z,d/(d-2.0))-2.0))/((d-2.0)*d*d);
+    // Internal copy of weight
+    double weight_;
 
-      return Psi_b+Psi_d;
-//      if (alpha==0) return 0;
-//      else if (alpha<=-10.0) return 0;
-//      else{
-//        return (pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)*(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z);
-//      }
+    // Shape parameter
+    ShapeParameter alpha_;
+
+    double Psi(double alpha, double z) const{
+      double psi;
+      
+      if(usePractical_){
+        psi = PsiPractical(alpha, z);
+      } else{
+        psi = PsiAnalytical(alpha, z);
+      }
+
+      // std::cout << "Psi(alpha=" << alpha << ", z=" << z << ") : " << psi << std::endl;
+
+      return psi;
+    }
+    
+    double PsiDerivativeAlpha(double alpha, double z) const{
+      double dpsi;
+
+      if(usePractical_){
+        dpsi = PsiPracticalDerivativeAlpha(alpha, z);
+
+        // // Check derivative by simple finite differences
+        // double psi_m = PsiPractical(alpha - epsilon_, z); // psi(i-1)
+        // double psi = PsiPractical(alpha, z); // psi(i+1)
+        // double dpsi_numeric = (psi - psi_m) / epsilon_;
+
+        // std::cout << "dpsi: "<< dpsi << ", dpsi_numeric: " << dpsi_numeric << std::endl;
+
+      } else{
+        dpsi = PsiAnalyticalDerivativeAlpha(alpha, z);
+      }
+
+      // std::cout << "PsiDerivativeAlpha(alpha=" << alpha << ", z=" << z << ") : " << dpsi << std::endl;
+
+      return dpsi;
+    }
+    
+    // Psi function from Black-Rangarajan formulation, original proposal by Barron (Eq. 25, Appendix A)
+    double PsiAnalytical(double alpha, double z) const {
+      double psi;
+
+      if( abs(alpha) < epsilon_){
+        psi = -log(z) + z - 1.0;
+
+      } else if(alpha <= ShapeParameter::MIN){
+        psi = z * log(z) - z + 1;
+
+      // } else if(alpha >= 2){
+      //   psi = 0.0; // this shouldn't be defined
+
+      } else{
+        psi = (abs(alpha - 2)/alpha) * ( (1 - 0.5 * alpha) * pow(z, alpha/(alpha-2)) + 0.5*alpha*z - 1 );
+      }
+
+      return psi;
+    }
+
+    double PsiAnalyticalDerivativeAlpha(double alpha, double z) const{
+      double dpsi;
+
+      if( abs(alpha) < epsilon_){
+        dpsi = 0.0;
+
+      } else if(alpha <= ShapeParameter::MIN){
+        dpsi = 0.0;
+
+      } else if(alpha >= 2){
+        dpsi = 0.0;
+
+      } else{
+        dpsi = (0.5*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1)*(-alpha/pow(alpha - 2, 2) + 1.0/(alpha - 2))*log(z) - 0.5*pow(z, alpha/(alpha - 2)))*fabs(alpha - 2)/alpha + (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/alpha - (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*fabs(alpha - 2)/pow(alpha, 2);
+      }
+
+      return dpsi;
+    }
+
+    // Practical implementation of Psi function recommended by Barron (Appendix B)
+    double PsiPractical(double alpha, double z) const {
+      double psi;
+      double b = abs(alpha - 2.0) + epsilon_;
+      double d = alpha >= 0? alpha + epsilon_ : alpha - epsilon_;
+
+      if ( alpha >= 2.0){
+        psi = 0.0;
+
+      } else if (alpha < 2.0){
+        psi = (b/d) * ( (1-0.5*d) * pow(z, d/(d-2.0) ) + 0.5*d*z - 1.0);
+      }
+
+      return psi;
+    }
+
+    double PsiPracticalDerivativeAlpha(double alpha, double z) const {
+      double dpsi;
+      double b = abs(alpha - 2.0) + epsilon_;
+      double d = alpha>=0? alpha + epsilon_ : alpha - epsilon_;
+
+      double dPsi_db = (0.5*d*z + pow(z, d/(d - 2.0))*(-0.5*d + 1) - 1.0)/d;
+      double dPsi_dd = b*(0.5*z + pow(z, d/(d - 2.0))*(-0.5*d + 1)*(-d/pow(d - 2.0, 2) + 1.0/(d - 2.0))*log(z) - 0.5*pow(z, d/(d - 2.0)))/d - b*(0.5*d*z + pow(z, d/(d - 2.0))*(-0.5*d + 1) - 1.0)/pow(d, 2);
+      double db_dalpha = (((alpha - 2) > 0) - ((alpha - 2) < 0));
+      double dd_dalpha = 1.0;
+
+      dpsi = dPsi_db * db_dalpha + dPsi_dd * dd_dalpha;
+
+      return dpsi;
     }
 
     double Psi_z(double alpha, double z) const {
@@ -139,12 +192,6 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
       return -(b*(pow(z,d/(d-2.0))-z))/(2.0*z);
-
-//      if (alpha==0) return 1.0-1.0/z;
-//      else if (alpha<=-10.0) return log(z);
-//      else{
-//        return -((alpha-2.0)*(pow(z,alpha/(alpha-2.0))-z)/2.0*z);
-//      }
     }
 
 };
