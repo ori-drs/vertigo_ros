@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
 
             if (switchCounter == 0){
               initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
-              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+//              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             }
 
             boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
@@ -442,10 +442,10 @@ int main(int argc, char *argv[])
 //    results.print();
 
     // save factor graph as graphviz dot file
-    NonlinearFactorGraph factor_graph;
-    factor_graph = isam2.getFactorsUnsafe();
-    std::ofstream os(std::string("factor_graph.dot"));
-    factor_graph.saveGraph(os,results);
+//    NonlinearFactorGraph factor_graph;
+//    factor_graph = isam2.getFactorsUnsafe();
+//    std::ofstream os(std::string("factor_graph.dot"));
+//    factor_graph.saveGraph(os,results);
 
 
     timer.print(cout);

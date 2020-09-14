@@ -69,15 +69,31 @@ namespace vertigo {
           if (H1) *H1 = *H1 * w;
           if (H2) *H2 = *H2 * w;
 //          if (H3) *H3 = error;
+          cout << "alpha value is: " << alpha.value() << endl;
+          std::cout << "error is: \n" << error << std::endl;
+          if (alpha.value()==2 || abs(alpha.value())<=0.01 || alpha.value()<= -10){
+            if (error.rows() == 3){
+              if (H3) *H3 = error;
+            } else {
 
-          if (alpha.value()==2 || alpha.value()==0 || alpha.value()<= -10){
-            if (H3) *H3 = Eigen::Vector3d(1,1,0)*error;
+              gtsam::Vector6 vec;
+              vec[0]=1.0;vec[1]=1.0;vec[2]=1.0;vec[3]=0.0;vec[4]=0.0;vec[5]=0.0;
+              if (H3) *H3 = error;
+//              cout << "H3 is:\n " << H3 << endl;
+            }
 
-            // std::cout << "alpha.value() is:" <<alpha.value() << std::endl;
+
+//             std::cout << "alpha.value() is:" <<alpha.value() << std::endl;
             // std::cout << "H3 is:\n" <<H3 << std::endl;
           } else {
-            if (H3) *H3 = error * (-w*(alpha.value()-1)*pow(pow(error_dis/c,2)/(alpha.value()-2)+1,-1)*
-                                   pow(error_dis/c,2)/pow(alpha.value()-2,2));
+//             cout << "alpha is: " << alpha.value() << endl;
+//             if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
+             if (H3) *H3 = error * (-w*(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
+                                    pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
+
+//             if (H3) *H3 = error * w*(0.5*(log(pow(error_dis/c,2)/abs(alpha.value()-2)+1))-(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
+//             pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
+//            cout << "weight_adaptive_alpha is: " << weight_adaptive_alpha(error_dis, alpha.value(), c) << endl;
           }
 
 
@@ -95,29 +111,39 @@ namespace vertigo {
       double epsilon = 1E-5;
 
       double weight_adaptive(double x, double alpha, double c) const {
-        double b, d;
-        b = abs(alpha-2)+epsilon;
-        if (alpha>=0) d = alpha+epsilon;
-        if (alpha<0)  d = alpha-epsilon;
+        // practical
+//        double b, d;
+//        b = abs(alpha-2)+epsilon;
+//        if (alpha>=0) d = alpha+epsilon;
+//        if (alpha<0)  d = alpha-epsilon;
 
+//        return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
+
+        // analytical
         if (alpha == 2) return 1/pow(c,2);
-        else return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
+        else if (abs(alpha)<=0.01) return 2/(pow(x,2)+2*pow(c,2));
+        else if (alpha <= -10) return 1/pow(c,2) * exp(-0.5*pow(x/c,2));
+        else return (1/pow(c,2))*pow(pow(x/c,2)/((abs(alpha-2)))+1,(0.5*alpha-1));
+
       }
 
       double weight_adaptive_alpha(double x, double alpha, double c) const {
-        double b, d;
-        b = abs(alpha-2)+epsilon;
-        if (alpha>=0) d = alpha+epsilon;
-        if (alpha<0)  d = alpha-epsilon;
+        // practical
+//        double b, d;
+//        b = abs(alpha-2)+epsilon;
+//        if (alpha>=0) d = alpha+epsilon;
+//        if (alpha<0)  d = alpha-epsilon;
 
-        double w_b, w_d;
+//        double w_b, w_d;
+//        w_b = -((d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b)+1,(d/2-2)))/(pow(c,4)*pow(b,2))*(alpha-2)/abs(alpha-2);
+//        w_d = (pow(pow(x,2)/(b*pow(c,2))+1,(d/2-1))*log(pow(x,2)/(b*pow(c,2))+1))/(2*pow(c,2));
+//        return (w_b + w_d);
 
-        w_b = ((d/2-1)*pow(x,2)*pow(pow(x,2)/(pow(c,2)*b)+1,(d/2-2)))/(pow(c,4)*pow(b,2));
+        // analytical
+        if (alpha == 2 || abs(alpha)<=0.01 || alpha <= -10) return 0;
+        else return (1/pow(c,2))*pow(pow(x,2)/(pow(c,2)*abs(alpha-2))+1,alpha/2-1)*(log(pow(x,2)/(pow(c,2)*abs(alpha-2))+1))/2-
+                    (pow(x,2)*(alpha/2-1))/(pow(c,2)*(pow(x,2)/(pow(c,2)*abs(alpha-2))+1)*abs(alpha-2)*(alpha-2));
 
-        w_d = pow(pow(x,2)/(b*pow(c,2))+1,(d/2-1))*log(pow(x,2)/(b*pow(c,2))+1)/(2*pow(c,2));
-
-//        if (alpha == 2) return 1/pow(c,2);
-        return w_b + w_d;
       }
 
   };
