@@ -26,20 +26,12 @@ namespace vertigo {
 
     /** wrap a double */
     ShapeParameter(double d) : d_(d) {
-      if (d_ >= 2.0) d_=  2.0 - epsilon_; // maximum shape param is 2.0
+      if (d_ >= 2.0) d_=  2.0; // maximum shape param is 2.0
       if (d_ < MIN) d_= MIN; // minimum shape param is -10.0
     }
 
     /** access the underlying value */
     double value() const { return d_; }
-
-//    double weight_z() const {return weight_z_;}
-
-//    void setWeight_z(double weight_z) const {
-      
-//      weight_z_ = weight_z;
-////      std::cout << "ShapeParameter: trying to set weight_z_ to  " << std::to_string(weight_z) << ". Result:" << std::to_string(weight_z_) << std::endl;
-//      }
 
     /** print @param s optional string naming the object */
     inline void print(const std::string& name="") const {
@@ -61,7 +53,7 @@ namespace vertigo {
     inline ShapeParameter retract(const gtsam::Vector& v) const {
       double x = value() + v(0);
 
-      //std::cout << "Shape parameter actual: " << value() << ", dx: " << v(0) << ", new: " << x << std::endl;
+      std::cout << "Shape parameter actual: " << value() << ", dx: " << v(0) << ", new: " << x << std::endl;
 
       if (x > 2.0) x = 2.0;
       else if (x < MIN) x = MIN;

@@ -397,7 +397,7 @@ int main(int argc, char *argv[])
 
             if (switchCounter == 0){
               initialEstimate.insert(fullSLAM::AlphaKey(), ShapeParameter(2.0));
-//              graph.add(PriorFactor<ShapeParameter>(fullSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
+             graph.add(PriorFactor<ShapeParameter>(fullSLAM::AlphaKey(),ShapeParameter(2.0),adaptivePriorModel));
             }
 
             boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(fullSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));

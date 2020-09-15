@@ -252,8 +252,8 @@ int main(int argc, char *argv[])
     if (vm.count("qr")) isam2Params.factorization = ISAM2Params::QR;
 
     if (vm.count("verbose")) {
-    //  isam2Params.enableDetailedResults = true;
-      isam2Params.evaluateNonlinearError = true;
+      isam2Params.enableDetailedResults = true;
+      //isam2Params.evaluateNonlinearError = true;
     }
     isam2Params.relinearizeThreshold = relinThresh;
 
@@ -353,11 +353,11 @@ int main(int argc, char *argv[])
           else if (useAdaptive) {
            switchCounter++;
             // create switch prior factor
-            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(1.0));
+            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
 
             if (switchCounter == 0){
-              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(1.9));
-//              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             }
 
             boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));

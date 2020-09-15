@@ -54,8 +54,22 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       double h = sqrtPsi > 0? 0.5 * (1.0 / sqrtPsi * dPsi_dalpha) : epsilon_;
       if (H) *H = gtsam::Vector1(h);
 
-      // std::cout << "H: " << H << std::endl;
-      // std::cout << "error: " << error << std::endl;
+      // Sanity check if there are nan values
+      if(!(*H).allFinite() || (*H).isZero()){
+        std::cout << "[OutlierProcess] H: " << H << std::endl;
+        std::cout << "Psi(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << sqrtPsi << std::endl;
+        std::cout << "PsiDerivativeAlpha(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << dPsi_dalpha << std::endl;
+        std::cout << std::endl;
+        exit(-1);
+      }
+
+      if(!error.allFinite()){
+        std::cout << "[OutlierProcess] error: " << error << std::endl;
+        std::cout << "Psi(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << sqrtPsi << std::endl;
+        std::cout << "PsiDerivativeAlpha(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << dPsi_dalpha << std::endl;
+        std::cout << std::endl;
+        exit(-1);
+      }
 
       return error;
     }
@@ -65,10 +79,13 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 
   private:
     // Tolerance used for singularities
-    const double epsilon_ = 1E-5;
+    const double epsilon_ = 1E-2;
 
     // Use practical implementation flag
-    bool usePractical_ = true;
+    bool usePractical_ = false;
+
+    // Use numerical derivatives flag
+    bool useNumericalDerivatives_ = false;
 
     // Internal instance of prior factor
     gtsam::PriorFactor<VALUE> priorFactor;
@@ -88,7 +105,10 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
         psi = PsiAnalytical(alpha, z);
       }
 
-      // std::cout << "Psi(alpha=" << alpha << ", z=" << z << ") : " << psi << std::endl;
+      if(psi < 0.0){
+        //std::cout << "Psi(alpha=" << alpha << ", z=" << z << ") : " << psi << std::endl;
+        psi = 0.0;
+      }
 
       return psi;
     }
@@ -97,18 +117,33 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       double dpsi;
 
       if(usePractical_){
-        dpsi = PsiPracticalDerivativeAlpha(alpha, z);
-
-        // // Check derivative by simple finite differences
-        // double psi_m = PsiPractical(alpha - epsilon_, z); // psi(i-1)
-        // double psi = PsiPractical(alpha, z); // psi(i+1)
-        // double dpsi_numeric = (psi - psi_m) / epsilon_;
-
-        // std::cout << "dpsi: "<< dpsi << ", dpsi_numeric: " << dpsi_numeric << std::endl;
-
+        if(useNumericalDerivatives_){
+          // Practical Jacobian using numerical differentiation
+          double psi_m = PsiPractical(alpha - epsilon_, z); // psi(i-1)
+          double psi = PsiPractical(alpha, z); // psi(i)
+          dpsi = (psi - psi_m) / epsilon_;
+        
+        } else {
+          // Analytical Jacobian using practical implementation
+          dpsi = PsiPracticalDerivativeAlpha(alpha, z);
+        }
+        
       } else{
-        dpsi = PsiAnalyticalDerivativeAlpha(alpha, z);
+        if(useNumericalDerivatives_){
+          // Analytical Jacobian using numerical differentiation
+          double psi_m = PsiAnalytical(alpha - epsilon_, z); // psi(i-1)
+          double psi = PsiAnalytical(alpha, z); // psi(i)
+          dpsi = (psi - psi_m) / epsilon_;
+        
+        } else{
+          // Analytical Jacobian
+          dpsi = PsiAnalyticalDerivativeAlpha(alpha, z);
+        }
       }
+
+      if(dpsi < epsilon_)
+        dpsi = epsilon_;
+
 
       // std::cout << "PsiDerivativeAlpha(alpha=" << alpha << ", z=" << z << ") : " << dpsi << std::endl;
 
@@ -118,6 +153,12 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
     // Psi function from Black-Rangarajan formulation, original proposal by Barron (Eq. 25, Appendix A)
     double PsiAnalytical(double alpha, double z) const {
       double psi;
+
+      // Deal with singularities due to log(0)
+      // z should always be positive since is a weighted quadratic error
+      if(abs(z) < epsilon_){
+        z = epsilon_;
+      }
 
       if( abs(alpha) < epsilon_){
         psi = -log(z) + z - 1.0;
@@ -138,14 +179,20 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
     double PsiAnalyticalDerivativeAlpha(double alpha, double z) const{
       double dpsi;
 
+      // Deal with singularities due to log(0)
+      // z should always be positive since is a weighted quadratic error
+      if(abs(z) < epsilon_){
+        z = epsilon_;
+      }
+
       if( abs(alpha) < epsilon_){
-        dpsi = 0.0;
+        dpsi = epsilon_;
 
       } else if(alpha <= ShapeParameter::MIN){
-        dpsi = 0.0;
+        dpsi = epsilon_;
 
       } else if(alpha >= 2){
-        dpsi = 0.0;
+        dpsi = epsilon_;
 
       } else{
         dpsi = (0.5*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1)*(-alpha/pow(alpha - 2, 2) + 1.0/(alpha - 2))*log(z) - 0.5*pow(z, alpha/(alpha - 2)))*fabs(alpha - 2)/alpha + (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/alpha - (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*fabs(alpha - 2)/pow(alpha, 2);

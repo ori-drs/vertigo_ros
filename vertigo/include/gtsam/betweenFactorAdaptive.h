@@ -50,20 +50,49 @@ namespace vertigo {
           weight_ = w;
           outlierProcess_->setWeight(w);
 
+          // Compute derivative of w wrt alpha
+          double dw = weightAdaptiveDerivativeAlpha(weightedError, alpha.value(), c);
+
           // Jacobians
           // The Jacobians wrt the poses should be scaled
           if (H1) *H1 = *H1 * w;
           if (H2) *H2 = *H2 * w;
           // The Jacobian wrt alpha should be handled accordingly
-          if (H3) *H3 = error * weightAdaptiveDerivativeAlpha(weightedError, alpha.value(), c);
+          if (H3) *H3 =  error * dw;
 
           // Scale factor error by the weight from the adaptive kernel
           error *= w;
+          
+          // Sanity check if there are nan values
+          // if(!(*H1).allFinite() || (*H1).isZero()){
+          //   std::cout << "[BetweenFactorAdaptive] H1: " << H1 << std::endl;
+          //   std::cout << "weightAdaptive(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << w << std::endl;
+          //   std::cout << "weightAdaptiveDerivativeAlpha(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << dw << std::endl;
+          //   std::cout << std::endl;
+          //   exit(-1);
+          // }
+          // if(!(*H2).allFinite() || (*H2).isZero()){
+          //   std::cout << "[BetweenFactorAdaptive] H2: " << H2 << std::endl;
+          //   std::cout << "weightAdaptive(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << w << std::endl;
+          //   std::cout << "weightAdaptiveDerivativeAlpha(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << dw << std::endl;
+          //   std::cout << std::endl;
+          //   exit(-1);
+          // }
 
-          // std::cout << "H1: " << H1 << std::endl;
-          // std::cout << "H2: " << H2 << std::endl;
-          // std::cout << "H3: " << H3 << std::endl;
-          // std::cout << "error: " << error << std::endl;
+          if(!(*H3).allFinite() || (*H3).isZero()){
+            std::cout << "[BetweenFactorAdaptive] H3: " << H3 << std::endl;
+            std::cout << "weightAdaptive(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << w << std::endl;
+            std::cout << "weightAdaptiveDerivativeAlpha(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << dw << std::endl;
+            std::cout << std::endl;
+            exit(-1);
+          }
+          if(!error.allFinite()){
+            std::cout << "[BetweenFactorAdaptive] error: " << error << std::endl;
+            std::cout << "weightAdaptive(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << w << std::endl;
+            std::cout << "weightAdaptiveDerivativeAlpha(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << dw << std::endl;
+            std::cout << std::endl;
+            exit(-1);
+          }
 
           return error;
         }
@@ -72,10 +101,13 @@ namespace vertigo {
 
     private:
       // Tolerance used for singularities
-      double epsilon_ = 1E-5;
+      double epsilon_ = 1E-2;
       
       // Use practical implementation flag
-      bool usePractical_ = true;
+      bool usePractical_ = false;
+
+      // Use numerical derivatives flag
+      bool useNumericalDerivatives_ = false;
       
       // Internal instance of non-adaptive BetweenFactor
       gtsam::BetweenFactor<VALUE> betweenFactor;
@@ -114,18 +146,32 @@ namespace vertigo {
       double dw;
 
       if(usePractical_){
-        dw = weightAdaptivePracticalDerivativeAlpha(x, alpha, c);
-
-        //  // Check derivative by simple finite differences
-        // double w_m = weightAdaptivePractical(x, alpha - epsilon_, c); // psi(i-1)
-        // double w = weightAdaptivePractical(x, alpha, c); // psi(i+1)
-        // double dw_numeric = (w - w_m) / epsilon_;
-
-        // std::cout << "dw: "<< dw << ", dw_numeric: " << dw_numeric << std::endl;
-
+        if(useNumericalDerivatives_){
+          // Practical Jacobian using numerical differentiation
+          double w_m = weightAdaptivePractical(x, alpha - epsilon_, c); // psi(i-1)
+          double w = weightAdaptivePractical(x, alpha, c); // psi(i)
+          dw = (w - w_m) / epsilon_;
+        
+        } else{
+          // Analytical Jacobian using practical implementation
+          dw = weightAdaptivePracticalDerivativeAlpha(x, alpha, c);
+        }
+        
       } else{
-        dw = weightAdaptiveAnalyticalDerivativeAlpha(x, alpha, c);
+        if(useNumericalDerivatives_){
+          // Analytical Jacobian using numerical differentiation
+          double w_m = weightAdaptiveAnalytical(x, alpha - epsilon_, c); // psi(i-1)
+          double w = weightAdaptiveAnalytical(x, alpha, c); // psi(i)
+          dw = (w - w_m) / epsilon_;
+        
+        } else{
+          // Analytical Jacobian
+          dw = weightAdaptiveAnalyticalDerivativeAlpha(x, alpha, c);
+        }
       }
+
+      if(dw < epsilon_)
+        dw = epsilon_;
 
       // std::cout << "weightAdaptiveDerivativeAlpha(x=" << x << ", alpha=" << alpha << ", c=" << c << ") : " << dw << std::endl;
 
@@ -136,17 +182,17 @@ namespace vertigo {
     double weightAdaptiveAnalytical(double x, double alpha, double c) const {
       double w;
 
-      if (alpha >= 2){
-        w = 1.0 / pow(c,2);
+      if ((alpha-epsilon_) >= 2){
+        w = 1.0 / pow(c, 2);
 
       } else if (abs(alpha) <= epsilon_){
-        w = 2.0 / (pow(x, 2) + 2 * pow(c, 2));
+        w = 2.0 / (pow(x, 2) + 2.0 * pow(c, 2));
 
       } else if (alpha <= ShapeParameter::MIN){
-        w = 1 / pow(c, 2) * exp(-0.5 * pow(x/c, 2));
+        w = 1.0 / pow(c, 2) * exp(-0.5 * pow(x/c, 2));
 
       } else{
-        w = (1/pow(c,2)) * pow( pow(x/c, 2) / abs(alpha-2) + 1, (0.5*alpha-1));
+        w = (1.0 / pow(c, 2)) * pow( pow(x/c, 2) / abs(alpha-2.0) + 1.0, (0.5*alpha-1));
       }
 
       return w;
@@ -156,7 +202,7 @@ namespace vertigo {
       double dw;
 
       if (alpha >= 2 || abs(alpha)<= epsilon_ || alpha <= ShapeParameter::MIN){
-        dw = 0;
+        dw = epsilon_;
       }
       else{
         dw = pow(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)), 0.5*alpha - 1)*(0.5*log(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2))) - pow(x, 2)*(0.5*alpha - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/(pow(c, 2)*(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)))*pow(alpha - 2, 2)))/pow(c, 2);
