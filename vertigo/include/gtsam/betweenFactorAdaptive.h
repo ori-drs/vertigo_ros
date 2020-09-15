@@ -41,6 +41,7 @@ namespace vertigo {
           // calculate error
           gtsam::Vector error = betweenFactor.evaluateError(p1, p2, H1, H2);
 
+//          double error_dis = this->noiseModel_->distance(error);
           double error_dis = this->noiseModel_->distance(error);
 
           double c = 1.0; // c is scalling param set before optimisation
@@ -69,18 +70,12 @@ namespace vertigo {
           if (H1) *H1 = *H1 * w;
           if (H2) *H2 = *H2 * w;
 //          if (H3) *H3 = error;
-          cout << "alpha value is: " << alpha.value() << endl;
-          std::cout << "error is: \n" << error << std::endl;
-          if (alpha.value()==2 || abs(alpha.value())<=0.01 || alpha.value()<= -10){
-            if (error.rows() == 3){
-              if (H3) *H3 = error;
-            } else {
+          if (abs(alpha.value()-2.0) <= 0.01 || abs(alpha.value()) <= 0.01 || alpha.value() <= -10.0){
 
-              gtsam::Vector6 vec;
-              vec[0]=1.0;vec[1]=1.0;vec[2]=1.0;vec[3]=0.0;vec[4]=0.0;vec[5]=0.0;
-              if (H3) *H3 = error;
+            if (H3) *H3 = error;
+
 //              cout << "H3 is:\n " << H3 << endl;
-            }
+
 
 
 //             std::cout << "alpha.value() is:" <<alpha.value() << std::endl;
@@ -88,8 +83,10 @@ namespace vertigo {
           } else {
 //             cout << "alpha is: " << alpha.value() << endl;
 //             if (H3) *H3 = error * weight_adaptive_alpha(error_dis, alpha.value(), c);
-             if (H3) *H3 = error * (-w*(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
-                                    pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
+
+            if (H3) *H3 = error * (-w*pow(1-pow(error_dis/c,2)/(alpha.value()-2),-1)*
+                                   error_dis/(pow(c,2)*abs(alpha.value()-2)));
+
 
 //             if (H3) *H3 = error * w*(0.5*(log(pow(error_dis/c,2)/abs(alpha.value()-2)+1))-(0.5*alpha.value()-1)*pow(pow(error_dis/c,2)/abs(alpha.value()-2)+1,-1)*
 //             pow(error_dis/c,2)/((alpha.value()-2)*abs(alpha.value()-2)));
@@ -120,10 +117,10 @@ namespace vertigo {
 //        return (1/pow(c,2))*pow(pow(x/c,2)/b+1,(0.5*d-1));
 
         // analytical
-        if (alpha == 2) return 1/pow(c,2);
-        else if (abs(alpha)<=0.01) return 2/(pow(x,2)+2*pow(c,2));
-        else if (alpha <= -10) return 1/pow(c,2) * exp(-0.5*pow(x/c,2));
-        else return (1/pow(c,2))*pow(pow(x/c,2)/((abs(alpha-2)))+1,(0.5*alpha-1));
+        if (abs(alpha-2.0) <= 0.01) return 1/pow(c,2);
+//        else if (alpha == 0.0) return 2/(pow(x,2)+2*pow(c,2));
+//        else if (alpha <= -10) return 1/pow(c,2) * exp(-0.5*pow(x/c,2));
+        else return (1/pow(c,2))*pow(pow(x/c,2)/abs(alpha-2)+1,(alpha/2-1));
 
       }
 
@@ -140,7 +137,7 @@ namespace vertigo {
 //        return (w_b + w_d);
 
         // analytical
-        if (alpha == 2 || abs(alpha)<=0.01 || alpha <= -10) return 0;
+        if (abs(alpha-2.0) <= 0.01) return 0;
         else return (1/pow(c,2))*pow(pow(x,2)/(pow(c,2)*abs(alpha-2))+1,alpha/2-1)*(log(pow(x,2)/(pow(c,2)*abs(alpha-2))+1))/2-
                     (pow(x,2)*(alpha/2-1))/(pow(c,2)*(pow(x,2)/(pow(c,2)*abs(alpha-2))+1)*abs(alpha-2)*(alpha-2));
 

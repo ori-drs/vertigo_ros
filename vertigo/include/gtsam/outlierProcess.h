@@ -102,49 +102,56 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 
     ShapeParameter alpha_;
     double epsilon_ = 1E-5;
+
     double Psi(double alpha, double z) const {
+      // practical
+//      double b;
+//      b = abs(alpha-2)+epsilon_;
+//      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
-      double b;
-      b = abs(alpha-2)+epsilon_;
-      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+//      if (alpha==2.0) return 0;
+//      else if (alpha<2.0) return (b/d)*((1-0.5*d)*pow(z,d/(d-2.0))+0.5*d*z-1);
 
-      if (alpha==2.0) return 0;
-      else if (alpha<2.0) return (b/d)*((1-0.5*d)*pow(z,d/(d-2.0))+0.5*d*z-1);
+      // analytical
+      if (abs(alpha-2.0) <= 1E-2) return 0;
+      if (abs(alpha) <=  1E-2) return -log(z)+z-1;
+//      if (alpha <= -10.0) return z*log(z)-z+1;
+      else return -(alpha-2)/alpha * ((1-alpha/2)*pow(z,alpha/(alpha-2))+alpha*z/2-1);
     }
 
     double Psi_alpha(double alpha, double z) const {
 
-      double b;
-      b = abs(alpha-2)+epsilon_;
-      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+//      double b;
+//      b = abs(alpha-2)+epsilon_;
+//      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
-      double Psi_b, Psi_d;
+//      double Psi_b, Psi_d;
 
-      Psi_b = -((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
+//      Psi_b = -((2.0-d)*pow(z,d/(d-2.0))+d*z-2.0)/(2.0*d);
 
-      Psi_d = (b*((pow(z,d/(d-2.0))*(log(z)-1.0)+1.0)*d+2*pow(z,d/(d-2.0))-2.0))/((d-2.0)*d*d);
+//      Psi_d = (b*((pow(z,d/(d-2.0))*(log(z)-1.0)+1.0)*d+2*pow(z,d/(d-2.0))-2.0))/((d-2.0)*d*d);
 
-      return Psi_b+Psi_d;
-//      if (alpha==0) return 0;
+//      return Psi_b+Psi_d;
+      if (abs(alpha) <=  0.01) return 0;
 //      else if (alpha<=-10.0) return 0;
-//      else{
-//        return (pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)*(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z);
-//      }
+      else{
+        return -((pow(z,alpha/(alpha-2.0))*log(z))/alpha + (2.0*pow(z,alpha/(alpha-2.0))-2.0)/(alpha*alpha) - 0.5*(pow(z,alpha/(alpha-2.0))-z));
+      }
     }
 
     double Psi_z(double alpha, double z) const {
 
-      double b;
-      b = abs(alpha-2)+epsilon_;
-      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
+//      double b;
+//      b = abs(alpha-2)+epsilon_;
+//      double d = alpha>=0? alpha+epsilon_ : alpha-epsilon_;
 
-      return -(b*(pow(z,d/(d-2.0))-z))/(2.0*z);
+//      return -(b*(pow(z,d/(d-2.0))-z))/(2.0*z);
 
-//      if (alpha==0) return 1.0-1.0/z;
+      if (alpha == 0) return 1.0-1.0/z;
 //      else if (alpha<=-10.0) return log(z);
-//      else{
-//        return -((alpha-2.0)*(pow(z,alpha/(alpha-2.0))-z)/2.0*z);
-//      }
+      else{
+        return ((alpha-2.0)*(pow(z,alpha/(alpha-2.0))-z)/2.0*z);
+      }
     }
 
 };

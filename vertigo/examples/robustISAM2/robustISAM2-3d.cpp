@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
     	  if (e.j==e.i+1) {
           timer.tic("initialize");
           odomCounter++;
-          cout << "Number of odom constraints is: " << odomCounter << endl;
+//          cout << "Number of odom constraints is: " << odomCounter << endl;
           Pose3 predecessorPose = isam2.calculateEstimate<Pose3>(fullSLAM::PoseKey(p.id-1));
 //          cout << "predecessor pose: rot:\n " << predecessorPose.rotation() << "\n translation is: \n" << predecessorPose.translation() << endl;
 
@@ -458,6 +458,7 @@ int main(int argc, char *argv[])
     	else  {
         timer.tic("update");
     	  isam2.update(graph, initialEstimate);
+        cout << "counter: " << counter << endl;
 //        cout << "counter: " << counter << " and poses size is: " << poses.size() << endl;
         timer.toc("update");
     	}
