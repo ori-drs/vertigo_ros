@@ -43,6 +43,7 @@ namespace vertigo {
 
           // Calculate weighted error
           double weightedError = this->noiseModel_->distance(error);
+//          double weightedError = error.norm();
 
           // Recover weight and set it up in outlierProcess factor
           double c = 1.0; // c is scaling param set before optimisation
@@ -53,6 +54,10 @@ namespace vertigo {
           // Compute derivative of w wrt alpha
           double dw = weightAdaptiveDerivativeAlpha(weightedError, alpha.value(), c);
 
+          // Scale factor error by the weight from the adaptive kernel
+          // why this line was moved to below the Jacobians?(MR)
+
+
           // Jacobians
           // The Jacobians wrt the poses should be scaled
           if (H1) *H1 = *H1 * w;
@@ -60,7 +65,6 @@ namespace vertigo {
           // The Jacobian wrt alpha should be handled accordingly
           if (H3) *H3 =  error * dw;
 
-          // Scale factor error by the weight from the adaptive kernel
           error *= w;
           
           // Sanity check if there are nan values
@@ -79,12 +83,12 @@ namespace vertigo {
           //   exit(-1);
           // }
 
-          if(!(*H3).allFinite() || (*H3).isZero()){
-            std::cout << "[BetweenFactorAdaptive] H3: " << H3 << std::endl;
+          if(!(*H3).allFinite() /*|| (*H3).isZero()*/){
+            std::cout << "[BetweenFactorAdaptive] H3:\n " << H3 << std::endl;
             std::cout << "weightAdaptive(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << w << std::endl;
             std::cout << "weightAdaptiveDerivativeAlpha(x=" << weightedError << ", alpha=" << alpha.value() << ") : " << dw << std::endl;
             std::cout << std::endl;
-            exit(-1);
+//            exit(-1);
           }
           if(!error.allFinite()){
             std::cout << "[BetweenFactorAdaptive] error: " << error << std::endl;
@@ -169,9 +173,9 @@ namespace vertigo {
           dw = weightAdaptiveAnalyticalDerivativeAlpha(x, alpha, c);
         }
       }
-
-      if(dw < epsilon_)
-        dw = epsilon_;
+      // do we need this here? (MR)
+//      if(dw < epsilon_)
+//        dw = 1E-2;
 
       // std::cout << "weightAdaptiveDerivativeAlpha(x=" << x << ", alpha=" << alpha << ", c=" << c << ") : " << dw << std::endl;
 
@@ -182,13 +186,13 @@ namespace vertigo {
     double weightAdaptiveAnalytical(double x, double alpha, double c) const {
       double w;
 
-      if ((alpha-epsilon_) >= 2){
+      if (abs(alpha-2) <= 0.01){
         w = 1.0 / pow(c, 2);
 
-      } else if (abs(alpha) <= epsilon_){
+      } else if (alpha == 0.0){
         w = 2.0 / (pow(x, 2) + 2.0 * pow(c, 2));
 
-      } else if (alpha <= ShapeParameter::MIN){
+      }else if (alpha <= ShapeParameter::MIN){
         w = 1.0 / pow(c, 2) * exp(-0.5 * pow(x/c, 2));
 
       } else{
@@ -201,11 +205,12 @@ namespace vertigo {
     double weightAdaptiveAnalyticalDerivativeAlpha(double x, double alpha, double c) const {
       double dw;
 
-      if (alpha >= 2 || abs(alpha)<= epsilon_ || alpha <= ShapeParameter::MIN){
-        dw = epsilon_;
+      if (abs(alpha-2) <= 0.01 || abs(alpha) == 0.0 || alpha <= ShapeParameter::MIN){
+        dw = 1E-5;
       }
       else{
-        dw = pow(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)), 0.5*alpha - 1)*(0.5*log(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2))) - pow(x, 2)*(0.5*alpha - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/(pow(c, 2)*(1 + pow(x, 2)/(pow(c, 2)*fabs(alpha - 2)))*pow(alpha - 2, 2)))/pow(c, 2);
+//        dw = pow(1 + pow(x, 2)/(pow(c, 2)*abs(alpha - 2)), 0.5*alpha - 1)*(0.5*log(1 + pow(x, 2)/(pow(c, 2)*abs(alpha - 2))) - pow(x, 2)*(0.5*alpha - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/(pow(c, 2)*(1 + pow(x, 2)/(pow(c, 2)*abs(alpha - 2)))*pow(alpha - 2, 2)))/pow(c, 2);
+        dw = 0.5*weightAdaptiveAnalytical(x,alpha,c)*(pow(x/c,2)*pow(1-pow(x/c,2)/(alpha-2),-1))/(alpha-2);
       }
 
       return dw;

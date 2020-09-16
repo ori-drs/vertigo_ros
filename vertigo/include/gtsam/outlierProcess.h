@@ -51,16 +51,16 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       gtsam::Vector error = gtsam::Vector1(sqrtPsi);
 
       // Handle derivatives: 0.5 * sqrt(Psi(alpha, weight))^-0.5 * Psi_alpha
-      double h = sqrtPsi > 0? 0.5 * (1.0 / sqrtPsi * dPsi_dalpha) : epsilon_;
+      double h = sqrtPsi > 0? 0.5 * (1.0 / sqrtPsi * dPsi_dalpha) : 1E-5;
       if (H) *H = gtsam::Vector1(h);
 
       // Sanity check if there are nan values
-      if(!(*H).allFinite() || (*H).isZero()){
+      if(!(*H).allFinite() /*|| (*H).isZero()*/){
         std::cout << "[OutlierProcess] H: " << H << std::endl;
         std::cout << "Psi(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << sqrtPsi << std::endl;
         std::cout << "PsiDerivativeAlpha(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << dPsi_dalpha << std::endl;
         std::cout << std::endl;
-        exit(-1);
+//        exit(-1);
       }
 
       if(!error.allFinite()){
@@ -79,7 +79,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
 
   private:
     // Tolerance used for singularities
-    const double epsilon_ = 1E-2;
+    const double epsilon_ = 1E-5;
 
     // Use practical implementation flag
     bool usePractical_ = false;
@@ -141,8 +141,8 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
         }
       }
 
-      if(dpsi < epsilon_)
-        dpsi = epsilon_;
+//      if(dpsi < epsilon_)
+//        dpsi = epsilon_;
 
 
       // std::cout << "PsiDerivativeAlpha(alpha=" << alpha << ", z=" << z << ") : " << dpsi << std::endl;
@@ -160,14 +160,14 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
         z = epsilon_;
       }
 
-      if( abs(alpha) < epsilon_){
+      if( abs(alpha) == 0.0){
         psi = -log(z) + z - 1.0;
 
       } else if(alpha <= ShapeParameter::MIN){
         psi = z * log(z) - z + 1;
 
-      // } else if(alpha >= 2){
-      //   psi = 0.0; // this shouldn't be defined
+       } else if(alpha == 2.0){
+         psi = 0.0; // this shouldn't be defined
 
       } else{
         psi = (abs(alpha - 2)/alpha) * ( (1 - 0.5 * alpha) * pow(z, alpha/(alpha-2)) + 0.5*alpha*z - 1 );
@@ -185,17 +185,18 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
         z = epsilon_;
       }
 
-      if( abs(alpha) < epsilon_){
-        dpsi = epsilon_;
+      if( abs(alpha) == 0.0){
+        dpsi = 0.0;
 
       } else if(alpha <= ShapeParameter::MIN){
-        dpsi = epsilon_;
+        dpsi = 0.0;
 
-      } else if(alpha >= 2){
-        dpsi = epsilon_;
+      } else if(alpha == 2){
+        dpsi = 0.0;
 
       } else{
-        dpsi = (0.5*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1)*(-alpha/pow(alpha - 2, 2) + 1.0/(alpha - 2))*log(z) - 0.5*pow(z, alpha/(alpha - 2)))*fabs(alpha - 2)/alpha + (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/alpha - (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*fabs(alpha - 2)/pow(alpha, 2);
+//        dpsi = (0.5*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1)*(-alpha/pow(alpha - 2, 2) + 1.0/(alpha - 2))*log(z) - 0.5*pow(z, alpha/(alpha - 2)))*abs(alpha - 2)/alpha + (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*(((alpha - 2) > 0) - ((alpha - 2) < 0))/alpha - (0.5*alpha*z + pow(z, alpha/(alpha - 2))*(-0.5*alpha + 1) - 1)*abs(alpha - 2)/pow(alpha, 2);
+        dpsi = -(pow(z,alpha/(alpha-2))*log(z))/alpha + (2-2*pow(z,alpha/(alpha-2)))/(alpha*alpha) + (pow(z,alpha/(alpha-2))-z)/2;
       }
 
       return dpsi;
