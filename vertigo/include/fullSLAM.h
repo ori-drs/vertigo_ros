@@ -39,6 +39,9 @@ namespace fullSLAM {
   /// Convenience function for constructing a pose key
   inline Symbol PointKey(Eigen::Index j) { return Symbol('l', j); }
 
+  /// Shape param
+  inline Symbol AlphaKey() { return Symbol('a',0); }
+
   /*
    * List of typedefs for factors
    */

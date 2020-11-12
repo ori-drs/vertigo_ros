@@ -29,6 +29,9 @@ namespace po = boost::program_options;
 #include "switchVariableLinear.h"
 #include "switchVariableSigmoid.h"
 #include "betweenFactorMaxMix.h"
+#include "betweenFactorAdaptive.h"
+#include "shapeParameter.h"
+#include "outlierProcess.h"
 #include "timer.h"
 using namespace vertigo;
 
@@ -71,6 +74,13 @@ void writeResults(Values &results, std::string outputFile)
     Values::ConstFiltered<SwitchVariableSigmoid> result_switches = results.filter<SwitchVariableSigmoid>();
     foreach (const Values::ConstFiltered<SwitchVariableSigmoid>::KeyValuePair& key_value, result_switches) {
       resultFile << "VERTEX_SWITCH " << key_value.value.value() << endl;
+    }
+  }
+
+  {
+    Values::ConstFiltered<ShapeParameter> result_adaptive = results.filter<ShapeParameter>();
+    foreach (const Values::ConstFiltered<ShapeParameter>::KeyValuePair& key_value, result_adaptive) {
+      resultFile << "SHAPE_PARAM " << key_value.value.value() << endl;
     }
   }
 }
@@ -180,7 +190,9 @@ int main(int argc, char *argv[])
       ("output,o", po::value<std::string>(&outputFile)->default_value("results.isam"),"Save results in this file.")
       ("stop", po::value<int>(&stop)->default_value(-1), "Stop after this many poses.")
       ("verbose,v", "verbose mode")
+      ("linear", "Use the linear weight function.")
       ("sigmoid", "Use the sigmoid as the switch function Psi instead of a linear function.")
+      ("adaptive", "Use the adaptive weight function.")
       ("dogleg", "Use Powell's dogleg method instead of Gauss-Newton.")
       ("qr", "Use QR factorization instead of Cholesky.")
       ("relinSkip", po::value<int>(&isam2Params.relinearizeSkip)->default_value(10), "Only relinearize any variables every relinearizeSkip calls to ISAM2::update (default: 10)")
@@ -197,6 +209,10 @@ int main(int argc, char *argv[])
       return 1;
     }
 
+    bool odoOnly;
+    if (vm.count("odoOnly")) odoOnly=true;
+    else odoOnly=false;
+
     bool verbose;
     if (vm.count("verbose")) verbose=true;
     else verbose=false;
@@ -204,6 +220,14 @@ int main(int argc, char *argv[])
     bool useSigmoid;
     if (vm.count("sigmoid")) useSigmoid=true;
     else useSigmoid = false;
+
+    bool useLinear;
+    if (vm.count("linear")) useLinear=true;
+    else useLinear = false;
+
+    bool useAdaptive;
+    if (vm.count("adaptive")) useAdaptive=true;
+    else useAdaptive = false;
 
     // === read and parse input file ===
     std::vector<Pose> poses;
@@ -219,6 +243,7 @@ int main(int argc, char *argv[])
     // === set up iSAM2 ===
     //ISAM2Params isam2Params; already defined on top
     ISAM2DoglegParams doglegParams;
+    //doglegParams.setVerbose(true);
     ISAM2GaussNewtonParams gaussParams;
 
     if (vm.count("dogleg")) isam2Params.optimizationParams = doglegParams;
@@ -227,8 +252,8 @@ int main(int argc, char *argv[])
     if (vm.count("qr")) isam2Params.factorization = ISAM2Params::QR;
 
     if (vm.count("verbose")) {
-    //  isam2Params.enableDetailedResults = true;
-      isam2Params.evaluateNonlinearError = true;
+      isam2Params.enableDetailedResults = true;
+      //isam2Params.evaluateNonlinearError = true;
     }
     isam2Params.relinearizeThreshold = relinThresh;
 
@@ -280,21 +305,22 @@ int main(int argc, char *argv[])
     	      return 0;
     	    }
     	    initialEstimate.insertPose(p.id, predecessorPose * Pose2(e.x, e.y, e.th));
-    	    globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose2(e.x, e.y, e.th) );
+          globalInitialEstimate.insertPose(p.id,  predecessorPose * Pose2(e.x, e.y, e.th) );
           timer.toc("initialize");
     	  }
 
         timer.tic("addEdges");
 
     		if (!e.switchable && !e.maxMix) {
-    		  if (!vm.count("odoOnly") || (e.j == e.i+1) ) {
+          if (vm.count("odoOnly") || (e.j == e.i+1) ) {
     		    // this is easy, use the convenience functions of gtsam
     		    SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
     		    graph.addOdometry(e.i, e.j, Pose2(e.x, e.y, e.th), odom_model);
+//            cout << "odom edge is: " << e.j << "----" << e.i << endl;
     		  }
     		}
     		else if (e.switchable && !vm.count("odoOnly")) {
-    		  if (!useSigmoid) {
+          if (useLinear) {
             // create new switch variable
             initialEstimate.insert(Symbol('s',++switchCounter),SwitchVariableLinear(1.0));
 
@@ -309,7 +335,7 @@ int main(int argc, char *argv[])
             boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableLinear<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose2(e.x, e.y, e.th), odom_model));
             graph.push_back(switchableFactor);
     		  }
-    		  else {
+          else if (useSigmoid) {
 
     		    // create new switch variable
     		    initialEstimate.insert(Symbol('s',++switchCounter),SwitchVariableSigmoid(10.0));
@@ -324,6 +350,29 @@ int main(int argc, char *argv[])
     		    boost::shared_ptr<NonlinearFactor> switchableFactor(new BetweenFactorSwitchableSigmoid<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), Symbol('s', switchCounter), Pose2(e.x, e.y, e.th), odom_model));
     		    graph.push_back(switchableFactor);
     		  }
+          else if (useAdaptive) {
+           switchCounter++;
+            // create switch prior factor
+            SharedNoiseModel adaptivePriorModel = noiseModel::Diagonal::Sigmas(Vector1(20.0));
+
+            if (switchCounter == 0){
+              initialEstimate.insert(planarSLAM::AlphaKey(), ShapeParameter(2.0));
+              graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+            }
+
+            boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+            graph.push_back(outlierProcess);
+
+            // create switchable odometry factor
+            SharedNoiseModel odom_model = noiseModel::Gaussian::Covariance(e.covariance);
+            // robust error model
+//            SharedNoiseModel odom_model_huber = noiseModel::Robust::Create(noiseModel::mEstimator::Huber::Create(1.345), odom_model);
+            boost::shared_ptr<NonlinearFactor> adaptiveFactor(new BetweenFactorAdaptive<Pose2>(planarSLAM::PoseKey(e.i), planarSLAM::PoseKey(e.j), planarSLAM::AlphaKey(), Pose2(e.x, e.y, e.th), odom_model, outlierProcess.get()));
+
+            graph.push_back(adaptiveFactor);
+
+
+          }
     		}
     		else if (e.maxMix && !vm.count("odoOnly")) {
     		  // create mixture odometry factor
@@ -356,6 +405,7 @@ int main(int argc, char *argv[])
     	  ISAM2Result result = isam2.update(graph, initialEstimate);
         timer.toc("update");
     	  cout << "cliques: " << result.cliques << "\terr_before: " << *(result.errorBefore) << "\terr_after: " << *(result.errorAfter) << "\trelinearized: " << result.variablesRelinearized << endl;
+        //isam2.printStats();
     	}
     	else  {
         timer.tic("update");
@@ -391,7 +441,13 @@ int main(int argc, char *argv[])
     //cout << endl;
     Values results = isam2.calculateBestEstimate();
 
-    //results.print();
+//    results.print();
+
+    // save factor graph as graphviz dot file
+//    NonlinearFactorGraph factor_graph;
+//    factor_graph = isam2.getFactorsUnsafe();
+//    std::ofstream os(std::string("factor_graph.dot"));
+//    factor_graph.saveGraph(os,results);
 
 
     timer.print(cout);
