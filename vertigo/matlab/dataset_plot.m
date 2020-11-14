@@ -15,7 +15,7 @@ format longg
 % of the file
 outliers = input('How many outliers included in the graph? '); % in long new college example, it is 116 
 
-ftoread = '../datasets/newcollege/newcollege_long.csv';
+ftoread = 'newcollege_long.csv';
 fid = fopen(ftoread);
 M = textscan(fid, '%s%d%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f', 'Delimiter',' '); % you will need to change the number of values to match your file %f for numbers and %s for strings.
 fclose (fid);
@@ -40,7 +40,7 @@ for i=1:length(M{1})
     
 end
 
-plot(M{3}(1:count_poses),M{4}(1:count_poses),'r')
+plot(M{3}(1:count_poses),M{4}(1:count_poses),'g')
 xlabel ('x (m)')
 ylabel ('y (m)')
 hold on
@@ -61,9 +61,9 @@ end
 % Distinct wrong loop closures
 for i=0:outliers-1
     if i==1
-        plot([M{3}(tail_vec(end-i)+1) M{3}(head_vec(end-i)+1)], [M{4}(tail_vec(end-i)+1) M{4}(head_vec(end-i)+1)],'Color', [0/255 255/255 255/255], 'LineWidth', 3,  'DisplayName', 'False-Positive')
+        plot([M{3}(tail_vec(end-i)+1) M{3}(head_vec(end-i)+1)], [M{4}(tail_vec(end-i)+1) M{4}(head_vec(end-i)+1)],'Color', [255/255 0/255 0/255], 'LineWidth', 3,  'DisplayName', 'False-Positive')
     end
-    h2 = plot([M{3}(tail_vec(end-i)+1) M{3}(head_vec(end-i)+1)], [M{4}(tail_vec(end-i)+1) M{4}(head_vec(end-i)+1)],'Color', [0/255 255/255 255/255], 'LineWidth', 3);
+    h2 = plot([M{3}(tail_vec(end-i)+1) M{3}(head_vec(end-i)+1)], [M{4}(tail_vec(end-i)+1) M{4}(head_vec(end-i)+1)],'Color', [255/255 0/255 0/255], 'LineWidth', 3);
     set(get(get(h2(1),'Annotation'),'LegendInformation'),'IconDisplayStyle','off');
 end
 

@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
               graph.add(PriorFactor<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
             }
 
-            boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0), adaptivePriorModel));
+            boost::shared_ptr<OutlierProcess<ShapeParameter>> outlierProcess(new OutlierProcess<ShapeParameter>(planarSLAM::AlphaKey(), ShapeParameter(2.0-1E-5), adaptivePriorModel));
             graph.push_back(outlierProcess);
 
             // create switchable odometry factor

@@ -68,7 +68,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
         std::cout << "Psi(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << sqrtPsi << std::endl;
         std::cout << "PsiDerivativeAlpha(alpha=" << alpha.value() << ", z=" << weight_ << ") : " << dPsi_dalpha << std::endl;
         std::cout << std::endl;
-        exit(-1);
+//        exit(-1);
       }
 
       return error;
@@ -166,7 +166,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       } else if(alpha <= ShapeParameter::MIN){
         psi = z * log(z) - z + 1;
 
-       } else if(alpha == 2.0){
+       } else if(abs(alpha-2) <= 0.01){
          psi = 0.0; // this shouldn't be defined
 
       } else{
@@ -191,7 +191,7 @@ class OutlierProcess : public gtsam::NoiseModelFactor1<ShapeParameter>
       } else if(alpha <= ShapeParameter::MIN){
         dpsi = 0.0;
 
-      } else if(alpha == 2){
+      } else if(abs(alpha-2) <= 0.01){
         dpsi = 0.0;
 
       } else{
