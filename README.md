@@ -9,7 +9,7 @@ How to run vertigo_ros:
 For generating data with random outliers:
 
 ```
-roscd /vertigo_ros/vertigo/datasets
+roscd vertigo_ros/vertigo/datasets
 rosrun vertigo_ros generateDataset.py -i sphere2500/originalDataset/sphere2500.g2o -s -n 100
 ```
 
@@ -38,7 +38,8 @@ rosrun vertigo_ros robustISAM2-3d -i new.g2o --adaptive --relinSkip 4 --relinThr
 
 Parameters:
 * `--adaptive` selects the approach (you can choose `--linear`, `--sigmoid`).
-* `--relinSkip` chose the relinearisation step in iSAM2. Normally, for adaptive the best result is provided by having a relinSkip between 1 to 5. --relinThresh defines the relinearisation error threshold in iSAM2. Since shape parameter (\alpha) is a global parameter, I select relinThresh between 0.1 to 0.5 for the best result and avoiding indeterminate segfault. We might need to define a separate relinThresh specifically for \alpha in the future.
+* `--relinSkip` chose the relinearisation step in iSAM2. Normally, for adaptive the best result is provided by having a relinSkip between 1 to 5.
+* `--relinThresh` defines the relinearisation error threshold in iSAM2. Since shape parameter (\alpha) is a global parameter, select relinThresh between 0.1 to 0.5 for the best result and to avoid an indeterminate segfault. We might need to define a separate relinThresh specifically for \alpha in the future.
 
 Once the program finished, a file called `resut.csv` is stored in `~/catkin_ws/src/vertigo_ros/vertigo/datasets`.
 
