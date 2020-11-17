@@ -4,8 +4,10 @@ How to run vertigo_ros:
 
 For generating data with random outliers:
 
-`roscd /vertigo_ros/vertigo/datasets`
-`rosrun vertigo_ros generateDataset.py -i sphere2500/originalDataset/sphere2500.g2o -s -n 100`
+```
+roscd /vertigo_ros/vertigo/datasets
+rosrun vertigo_ros generateDataset.py -i sphere2500/originalDataset/sphere2500.g2o -s -n 100
+```
 
 where, `-s` make the loop closures switchable and `-n` defines the number of random outliers. Since newcollege dataset has its own outliers listed at the bottom of the data, it doesn't need to add random outliers.
 
