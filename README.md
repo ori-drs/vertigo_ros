@@ -34,7 +34,7 @@ Then run:
 ```
 rosrun vertigo_ros robustISAM2-3d -i new.g2o --adaptive --relinSkip 4 --relinThresh 0.1 -o results.csv
 
-``
+```
 
 Parameters:
 * `--adaptive` selects the approach (you can choose `--linear`, `--sigmoid`).
